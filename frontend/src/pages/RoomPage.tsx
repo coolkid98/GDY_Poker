@@ -54,12 +54,16 @@ export const RoomPage = (): JSX.Element => {
     }
 
     let mounted = true;
+    let joinedRoom: any = null;
+
     joinGameRoom(nickname)
       .then((room) => {
         if (!mounted) {
+          void room.leave();
           return;
         }
 
+        joinedRoom = room;
         setRoomRef(room);
         setConnected(true);
         setRoomMeta(room.roomId, room.sessionId);
@@ -127,6 +131,9 @@ export const RoomPage = (): JSX.Element => {
 
     return () => {
       mounted = false;
+      if (joinedRoom) {
+        void leaveGameRoom();
+      }
     };
   }, [addHandCard, appendLog, navigate, nickname, setConnected, setHand, setRoomMeta, setRoomState]);
 
