@@ -1,3 +1,5 @@
+import { cardThemeClass, toCardLabel } from "../utils/cards";
+
 interface HandPanelProps {
   hand: string[];
   selected: string[];
@@ -15,10 +17,11 @@ export const HandPanel = ({ hand, selected, onToggle }: HandPanelProps): JSX.Ele
           <button
             key={cardId}
             type="button"
-            className={`card-btn ${selectedSet.has(cardId) ? "selected" : ""}`}
+            className={`card-btn ${cardThemeClass(cardId)} ${selectedSet.has(cardId) ? "selected" : ""}`}
             onClick={() => onToggle(cardId)}
           >
-            {cardId}
+            <span className="card-main">{toCardLabel(cardId)}</span>
+            <span className="card-sub">{cardId.split("-")[0]}号牌堆</span>
           </button>
         ))}
       </div>

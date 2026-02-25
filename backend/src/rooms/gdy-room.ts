@@ -166,13 +166,21 @@ export class GdyRoom extends Room<GdyState> {
 
     const validation = this.ruleService.validatePlay(
       {
-        isTableEmpty: this.state.lastPlay.cards.length === 0,
-        currentTurnSeat: this.state.turnSeat
-      },
-      cards
+        cards,
+        declaredType: message.declaredType,
+        declaredKey: message.declaredKey,
+        lastPlay:
+          this.state.lastPlay.cards.length === 0
+            ? null
+            : {
+                cards: [...this.state.lastPlay.cards],
+                declaredType: this.state.lastPlay.declaredType,
+                declaredKey: this.state.lastPlay.declaredKey
+              }
+      }
     );
 
-    if (!validation.ok) {
+    if (!validation.ok || !validation.play) {
       this.send(client, "action_result", validation);
       return;
     }
@@ -182,14 +190,14 @@ export class GdyRoom extends Room<GdyState> {
     player.handCount = nextHand.length;
     this.send(client, "hand_sync", { cards: nextHand });
 
-    this.setLastPlay(player.seat, cards, message.declaredType ?? "", message.declaredKey ?? "");
+    this.setLastPlay(player.seat, cards, validation.play.type, validation.play.key);
     this.state.passCount = 0;
 
     this.broadcast("played", {
       seat: player.seat,
       cardsCount: cards.length,
-      declaredType: message.declaredType ?? "",
-      declaredKey: message.declaredKey ?? ""
+      declaredType: validation.play.type,
+      declaredKey: validation.play.key
     });
 
     if (player.handCount === 0) {

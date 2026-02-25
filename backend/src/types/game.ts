@@ -50,3 +50,28 @@ export interface ValidationResult {
   ok: boolean;
   reason?: string;
 }
+
+export interface LastPlaySnapshot {
+  cards: string[];
+  declaredType: string;
+  declaredKey: string;
+}
+
+export interface PlayValidationInput {
+  cards: string[];
+  declaredType?: string;
+  declaredKey?: string;
+  lastPlay: LastPlaySnapshot | null;
+}
+
+export interface ParsedPlayResult {
+  type: PatternType;
+  key: string;
+  length: number;
+  bombSize?: 3 | 4;
+  usedWildcards: number;
+}
+
+export interface PlayValidationResult extends ValidationResult {
+  play?: ParsedPlayResult;
+}

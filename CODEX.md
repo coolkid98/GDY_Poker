@@ -179,13 +179,34 @@
    1. 回退了包含 `node_modules`、`dist`、`.env` 的本地提交（未推送场景）
    2. 新增根目录 `.gitignore`，统一忽略依赖、构建产物、环境变量与缓存文件
    3. 重新生成干净提交：`6a335db`
+10. Colyseus Join 崩溃修复（2026-02-25）：
+   1. 将 `backend/tsconfig.json` 增加 `"useDefineForClassFields": false`
+   2. 目的：保证 `@colyseus/schema` 的字段 setter 正常触发，防止集合字段丢失 childType 元数据
+   3. 本地验证：使用 `colyseus.js` 脚本成功执行 `joinOrCreate('gdy_room')`，后端未再出现 `Symbol(Symbol.metadata)` 错误
+11. 前端重复入房修复（2026-02-25）：
+   1. 修复文件：`frontend/src/pages/RoomPage.tsx`
+   2. 处理方式：组件卸载时自动执行 `leaveGameRoom()`；若 join 在卸载后返回则立即 `room.leave()`
+   3. 目的：避免开发模式（React StrictMode 二次挂载）导致同一用户占用两个座位
+12. 规则引擎与 UI 升级（2026-02-25）：
+   1. `backend/src/engine/rule-service.ts` 重写为完整判型比较：
+      1. 支持单张/对子/顺子/炸弹（3炸、4炸）
+      2. 支持顺子边界（不含2、不循环、最长到QKA）
+      3. 支持非炸弹“接力+1”与“2兜底压制”（顺子不允许2兜底）
+      4. 支持炸弹比较（任意4炸 > 任意3炸，同炸弹类型比点数）
+      5. 支持赖子声明校验（含纯赖子炸弹）
+   2. `backend/src/rooms/gdy-room.ts` 已接入规则引擎结果，服务端统一落地 `declaredType/declaredKey`
+   3. 前端房间页升级：
+      1. 手牌显示改为可读牌面（如 `♣Q`、`小王`/`大王`）
+      2. 仅在赖子出牌时展示牌型声明区
+      3. 按回合状态自动禁用不可执行按钮
+      4. 增加“上一手信息”与错误文案翻译
+   4. 新增工具：`frontend/src/utils/cards.ts`（牌面解析、排序、花色样式）
 
 ## 10. 当前未完成项（必须继续）
 
-1. `RuleEngine` 目前是“基础校验版”，尚未完成完整 V1.1 判型与比较：
-   1. 赖子替代全组合判定
-   2. 顺子严格接力比较（含长度一致）
-   3. 炸弹 3 炸/4 炸比较的完整实现
+1. 当前赖子仍采用“声明式定型”：
+   1. 使用赖子时，客户端需提供 `declaredType` 与 `declaredKey`
+   2. 尚未实现“服务端完全自动推导最佳赖子替代”
 2. Redis 目前仅接入服务层，尚未把房间快照、会话、排行榜写入全链路。
 3. PostgreSQL 尚未接入（`users`/`matches`/`match_players`/`match_events`）。
 4. 托管超时策略尚未接入定时器执行。
@@ -203,7 +224,7 @@
 
 ## 12. 下一阶段计划（阶段 2）
 
-1. 完成 `RuleEngine` 正式版（严格按 `GDY_RULES_FINAL.md` V1.1）。
-2. 引入回合超时与托管自动出牌。
-3. 对接 Redis 房间快照与恢复。
-4. 对接 PostgreSQL 战绩落库与事件流。
+1. 引入回合超时与托管自动出牌。
+2. 对接 Redis 房间快照与恢复。
+3. 对接 PostgreSQL 战绩落库与事件流。
+4. 评估是否改为“赖子自动定型”并移除前端声明字段。

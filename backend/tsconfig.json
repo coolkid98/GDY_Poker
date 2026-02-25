@@ -4,6 +4,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": true,
+    "useDefineForClassFields": false,
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "skipLibCheck": true,
