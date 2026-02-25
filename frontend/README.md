@@ -1,0 +1,9 @@
+# Frontend
+
+## Run
+
+1. `cp .env.example .env`
+2. `npm install`
+3. `npm run dev`
+
+默认端口：`5173`

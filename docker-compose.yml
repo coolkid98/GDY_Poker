@@ -1,0 +1,27 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    container_name: gdy-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: gdy-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: gdy
+      POSTGRES_USER: gdy
+      POSTGRES_PASSWORD: gdy_dev_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  redis_data:
+  postgres_data:
