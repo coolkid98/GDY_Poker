@@ -164,7 +164,7 @@
    7. 手牌出完触发结算（赢家 +sumN，其他 -N）
 5. 当前消息事件（已实现）：
    1. Client -> Server：`ready`、`play_cards`、`pass`、`trustee_on`、`trustee_off`
-   2. Server -> Client：`hand_dealt`、`hand_sync`、`draw_card`、`played`、`passed`、`round_reset`、`settlement`、`action_result`
+   2. Server -> Client：`hand_dealt`、`hand_sync`、`draw_card`、`player_drew`、`played`、`passed`、`round_reset`、`settlement`、`action_result`
 6. 依赖修复记录：
    1. 前端 `colyseus.js` 原版本 `^0.16.23` 不存在，已改为 `^0.16.0`
    2. 目的是避免 `npm ERR! ETARGET No matching version found`
@@ -201,6 +201,18 @@
       3. 按回合状态自动禁用不可执行按钮
       4. 增加“上一手信息”与错误文案翻译
    4. 新增工具：`frontend/src/utils/cards.ts`（牌面解析、排序、花色样式）
+13. 出牌/摸牌可视化动画（2026-02-25）：
+   1. 后端事件增强：
+      1. `played` 广播新增 `cards`（明牌数组），前端可直接渲染桌面出牌
+      2. 新增 `player_drew` 广播（seat/deckCount/handCount），所有玩家可感知摸牌动作
+   2. 前端动画升级（`frontend/src/pages/RoomPage.tsx` + `frontend/src/styles.css`）：
+      1. 新增“桌面出牌区”，展示上一手的具体牌面（不是仅张数）
+      2. 出牌时按牌序执行入场动画（逐张延迟）
+      3. 摸牌时触发全局提示（`座位X摸1张`）与玩家行高亮脉冲
+      4. 自己摸牌时，新增手牌按钮执行入场动画（便于确认新牌）
+   3. 前端类型同步：
+      1. `UiLastPlay` 新增 `cards: string[]`
+      2. `HandPanel` 新增 `incomingCardId/incomingPulseTick` 动画入参
 
 ## 10. 当前未完成项（必须继续）
 

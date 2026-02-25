@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { HandPanel } from "../components/HandPanel";
 import { joinGameRoom, leaveGameRoom } from "../network/colyseus-client";
 import { normalizePlayers, useGameStore } from "../store/use-game-store";
-import { hasWildcard, sortCardIds } from "../utils/cards";
+import type { UiLastPlay } from "../types/game-state";
+import { cardThemeClass, hasWildcard, sortCardIds, toCardLabel } from "../utils/cards";
 
 const rankOptions = ["3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A", "2"];
 const patternOptions = [
@@ -23,8 +24,24 @@ const reasonMap: Record<string, string> = {
   CARD_NOT_OWNED: "你出的牌不在手牌中",
   UNKNOWN_PATTERN: "牌型无法识别",
   INVALID_DECLARED_KEY: "声明的关键点数不合法",
-  DUPLICATE_ACTION: "重复操作已忽略"
+  DUPLICATE_ACTION: "重复操作已忽略",
+  MISSING_ACTION_ID: "缺少操作编号，请重试"
 };
+
+interface PlayedMessage {
+  seat: number;
+  cardsCount: number;
+  cards: string[];
+  declaredType: string;
+  declaredKey: string;
+}
+
+interface PlayerDrewMessage {
+  seat: number;
+  cardsCount: number;
+  deckCount: number;
+  handCount: number;
+}
 
 const generateActionId = (): string => {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -69,14 +86,83 @@ export const RoomPage = (): JSX.Element => {
   const [declaredKey, setDeclaredKey] = useState("");
   const [roomRef, setRoomRef] = useState<any>(null);
 
+  const [tablePlayView, setTablePlayView] = useState<UiLastPlay | null>(null);
+  const [tableAnimTick, setTableAnimTick] = useState(0);
+  const [drawBanner, setDrawBanner] = useState<{ seat: number; tick: number } | null>(null);
+  const [drawPulseSeats, setDrawPulseSeats] = useState<Record<number, number>>({});
+  const [deckPulse, setDeckPulse] = useState(false);
+  const [incomingCardId, setIncomingCardId] = useState<string | null>(null);
+  const [incomingPulseTick, setIncomingPulseTick] = useState(0);
+
+  const drawPulseTimersRef = useRef<Record<number, number>>({});
+  const drawBannerTimerRef = useRef<number | null>(null);
+  const deckPulseTimerRef = useRef<number | null>(null);
+  const incomingCardTimerRef = useRef<number | null>(null);
+
   const { nickname, sessionId, roomState, hand, logs, setConnected, setRoomMeta, setHand, setRoomState, appendLog, clearRoom } =
     useGameStore();
+
+  useEffect(() => {
+    return () => {
+      Object.values(drawPulseTimersRef.current).forEach((timerId) => {
+        window.clearTimeout(timerId);
+      });
+      if (drawBannerTimerRef.current !== null) {
+        window.clearTimeout(drawBannerTimerRef.current);
+      }
+      if (deckPulseTimerRef.current !== null) {
+        window.clearTimeout(deckPulseTimerRef.current);
+      }
+      if (incomingCardTimerRef.current !== null) {
+        window.clearTimeout(incomingCardTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!nickname) {
       navigate("/", { replace: true });
       return;
     }
+
+    const triggerDrawEffects = (seat: number): void => {
+      setDrawPulseSeats((prev) => ({
+        ...prev,
+        [seat]: Date.now()
+      }));
+
+      const existingPulseTimer = drawPulseTimersRef.current[seat];
+      if (existingPulseTimer) {
+        window.clearTimeout(existingPulseTimer);
+      }
+      drawPulseTimersRef.current[seat] = window.setTimeout(() => {
+        setDrawPulseSeats((prev) => {
+          const next = { ...prev };
+          delete next[seat];
+          return next;
+        });
+        delete drawPulseTimersRef.current[seat];
+      }, 1200);
+
+      setDrawBanner({ seat, tick: Date.now() });
+      if (drawBannerTimerRef.current !== null) {
+        window.clearTimeout(drawBannerTimerRef.current);
+      }
+      drawBannerTimerRef.current = window.setTimeout(() => {
+        setDrawBanner(null);
+      }, 1200);
+
+      setDeckPulse(false);
+      window.setTimeout(() => {
+        setDeckPulse(true);
+      }, 0);
+      if (deckPulseTimerRef.current !== null) {
+        window.clearTimeout(deckPulseTimerRef.current);
+      }
+      deckPulseTimerRef.current = window.setTimeout(() => {
+        setDeckPulse(false);
+      }, 760);
+    };
 
     let mounted = true;
     let joinedRoom: any = null;
@@ -99,6 +185,16 @@ export const RoomPage = (): JSX.Element => {
           const lastPlayCards = toArray(rawState.lastPlay?.cards);
           const hasLastPlay = Number(rawState.lastPlay?.seat ?? -1) >= 0 && lastPlayCards.length > 0;
 
+          const nextLastPlay: UiLastPlay | null = hasLastPlay
+            ? {
+                seat: Number(rawState.lastPlay?.seat ?? -1),
+                declaredType: String(rawState.lastPlay?.declaredType ?? ""),
+                declaredKey: String(rawState.lastPlay?.declaredKey ?? ""),
+                cardsCount: lastPlayCards.length,
+                cards: [...lastPlayCards]
+              }
+            : null;
+
           setRoomState({
             roomId: String(rawState.roomId ?? room.roomId),
             status: String(rawState.status ?? ""),
@@ -106,28 +202,35 @@ export const RoomPage = (): JSX.Element => {
             turnSeat: Number(rawState.turnSeat ?? -1),
             deckCount: Number(rawState.deckCount ?? 0),
             passCount: Number(rawState.passCount ?? 0),
-            lastPlay: hasLastPlay
-              ? {
-                  seat: Number(rawState.lastPlay?.seat ?? -1),
-                  declaredType: String(rawState.lastPlay?.declaredType ?? ""),
-                  declaredKey: String(rawState.lastPlay?.declaredKey ?? ""),
-                  cardsCount: lastPlayCards.length
-                }
-              : null,
+            lastPlay: nextLastPlay,
             players
           });
+
+          setTablePlayView(nextLastPlay);
         });
 
         room.onMessage("hand_dealt", (message: { cards: string[] }) => {
           setHand(sortCardIds(message.cards ?? []));
           setSelectedCards([]);
+          setIncomingCardId(null);
+          setTablePlayView(null);
           appendLog(`收到发牌：${message.cards?.length ?? 0} 张`);
         });
 
         room.onMessage("draw_card", (message: { cardId: string }) => {
           const current = useGameStore.getState().hand;
           setHand(sortCardIds([...current, message.cardId]));
-          appendLog(`摸牌：${message.cardId}`);
+
+          setIncomingCardId(message.cardId);
+          setIncomingPulseTick((tick) => tick + 1);
+          if (incomingCardTimerRef.current !== null) {
+            window.clearTimeout(incomingCardTimerRef.current);
+          }
+          incomingCardTimerRef.current = window.setTimeout(() => {
+            setIncomingCardId(null);
+          }, 900);
+
+          appendLog(`摸牌：${toCardLabel(message.cardId)}`);
         });
 
         room.onMessage("hand_sync", (message: { cards: string[] }) => {
@@ -141,8 +244,29 @@ export const RoomPage = (): JSX.Element => {
           }
         });
 
-        room.onMessage("played", (message: { seat: number; cardsCount: number; declaredType: string; declaredKey: string }) => {
-          appendLog(`座位 ${message.seat} 出牌 ${message.cardsCount} 张（${message.declaredType}:${message.declaredKey}）`);
+        room.onMessage("played", (message: PlayedMessage) => {
+          const cards = sortCardIds(message.cards ?? []);
+          setTablePlayView({
+            seat: message.seat,
+            declaredType: message.declaredType,
+            declaredKey: message.declaredKey,
+            cardsCount: cards.length,
+            cards
+          });
+          setTableAnimTick((tick) => tick + 1);
+
+          const cardText = cards.map((card) => toCardLabel(card)).join(" ");
+          appendLog(`座位 ${message.seat} 出牌 ${cards.length} 张（${message.declaredType}:${message.declaredKey}） ${cardText}`);
+        });
+
+        room.onMessage("player_drew", (message: PlayerDrewMessage) => {
+          triggerDrawEffects(message.seat);
+
+          const store = useGameStore.getState();
+          const me = store.roomState?.players.find((player) => player.sessionId === store.sessionId);
+          if (me?.seat !== message.seat) {
+            appendLog(`座位 ${message.seat} 摸了 1 张牌`);
+          }
         });
 
         room.onMessage("passed", (message: { seat: number }) => {
@@ -150,6 +274,8 @@ export const RoomPage = (): JSX.Element => {
         });
 
         room.onMessage("round_reset", (message: { turnSeat: number }) => {
+          setTablePlayView(null);
+          setTableAnimTick((tick) => tick + 1);
           appendLog(`新一轮开始，座位 ${message.turnSeat} 先手`);
         });
 
@@ -190,6 +316,8 @@ export const RoomPage = (): JSX.Element => {
   const readyDisabled = roomState?.status === "PLAYING" || roomState?.status === "DEALING";
   const passDisabled = !isMyTurn || !hasLastPlay;
   const playDisabled = !isMyTurn || selectedCards.length === 0 || (selectedHasWildcard && (!declaredType || !declaredKey));
+
+  const tablePlay = tablePlayView ?? roomState?.lastPlay ?? null;
 
   const toggleCard = (cardId: string): void => {
     setSelectedCards((prev) => {
@@ -246,7 +374,7 @@ export const RoomPage = (): JSX.Element => {
         </div>
         <div className="status-row">
           <span className="status-pill">状态 {roomState?.status ?? "-"}</span>
-          <span className="status-pill">牌堆 {roomState?.deckCount ?? 0}</span>
+          <span className={`status-pill ${deckPulse ? "deck-pulse" : ""}`}>牌堆 {roomState?.deckCount ?? 0}</span>
           <span className="status-pill">当前回合座位 {roomState?.turnSeat ?? "-"}</span>
           <span className="status-pill">我的座位 {myPlayer?.seat ?? "-"}</span>
         </div>
@@ -301,15 +429,34 @@ export const RoomPage = (): JSX.Element => {
           </div>
         )}
 
-        <div className="last-play-box">
-          <h4>上一手</h4>
-          {!roomState?.lastPlay ? (
+        <div className="table-stage">
+          <div className="table-stage-head">
+            <h4>桌面出牌区</h4>
+            {drawBanner && (
+              <span key={`draw-${drawBanner.tick}`} className="draw-banner">
+                座位 {drawBanner.seat} 摸了 1 张牌
+              </span>
+            )}
+          </div>
+          {!tablePlay ? (
             <p className="muted">当前无可跟牌型</p>
           ) : (
-            <p className="muted">
-              座位 {roomState.lastPlay.seat} | {roomState.lastPlay.cardsCount} 张 | {roomState.lastPlay.declaredType}:
-              {roomState.lastPlay.declaredKey}
-            </p>
+            <>
+              <p className="muted">
+                座位 {tablePlay.seat} | {tablePlay.cardsCount} 张 | {tablePlay.declaredType}:{tablePlay.declaredKey}
+              </p>
+              <div className="table-cards" key={`play-${tableAnimTick}-${tablePlay.seat}-${tablePlay.cards.join("|")}`}>
+                {tablePlay.cards.map((cardId, index) => (
+                  <div
+                    key={`${tableAnimTick}-${cardId}-${index}`}
+                    className={`table-card ${cardThemeClass(cardId)} play-enter`}
+                    style={{ animationDelay: `${index * 70}ms` }}
+                  >
+                    <span className="table-card-main">{toCardLabel(cardId)}</span>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </section>
@@ -330,13 +477,17 @@ export const RoomPage = (): JSX.Element => {
             {(roomState?.players ?? []).map((player) => {
               const isMe = player.sessionId === myPlayer?.sessionId;
               const isTurnSeat = player.seat === roomState?.turnSeat;
+              const isDrawPulse = Boolean(drawPulseSeats[player.seat]);
+              const rowClass = [isMe ? "me" : "", isDrawPulse ? "draw-pulse" : ""].filter(Boolean).join(" ");
+
               return (
-                <tr key={player.sessionId} className={isMe ? "me" : ""}>
+                <tr key={player.sessionId} className={rowClass}>
                   <td>{player.seat}</td>
                   <td>
                     {player.nickname}
                     {isMe && <span className="seat-tag">我</span>}
                     {isTurnSeat && <span className="seat-tag turn">出牌中</span>}
+                    {isDrawPulse && <span className="seat-tag drew">摸牌</span>}
                   </td>
                   <td>{player.handCount}</td>
                   <td>
@@ -351,7 +502,13 @@ export const RoomPage = (): JSX.Element => {
       </section>
 
       <section className="panel">
-        <HandPanel hand={hand} selected={selectedCards} onToggle={toggleCard} />
+        <HandPanel
+          hand={hand}
+          selected={selectedCards}
+          onToggle={toggleCard}
+          incomingCardId={incomingCardId}
+          incomingPulseTick={incomingPulseTick}
+        />
       </section>
 
       <section className="panel">

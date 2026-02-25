@@ -196,6 +196,7 @@ export class GdyRoom extends Room<GdyState> {
     this.broadcast("played", {
       seat: player.seat,
       cardsCount: cards.length,
+      cards: [...cards],
       declaredType: validation.play.type,
       declaredKey: validation.play.key
     });
@@ -413,6 +414,13 @@ export class GdyRoom extends Room<GdyState> {
       this.send(client, "draw_card", { cardId: card.id });
     }
     this.state.deckCount = this.deck.length;
+
+    this.broadcast("player_drew", {
+      seat,
+      cardsCount: 1,
+      deckCount: this.state.deckCount,
+      handCount: hand.length
+    });
   }
 
   private clearTable(): void {

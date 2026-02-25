@@ -204,12 +204,102 @@ button:disabled {
   gap: 10px;
 }
 
-.last-play-box {
+.table-stage {
   margin-top: 14px;
   border: 1px dashed #b8b2a5;
   background: #fffef9;
   border-radius: 12px;
   padding: 10px 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.table-stage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.draw-banner {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  height: 28px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #214d7c;
+  background: #e0f0ff;
+  border: 1px solid #9ec2e3;
+  animation: draw-banner-in 250ms ease-out both;
+}
+
+@keyframes draw-banner-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.table-cards {
+  min-height: 76px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.table-card {
+  min-width: 92px;
+  min-height: 64px;
+  border: 2px solid #30424f;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #f3f6fa 100%);
+  box-shadow: 0 9px 18px #0000001f;
+  display: grid;
+  place-items: center;
+  padding: 4px 8px;
+}
+
+.table-card-main {
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.table-card.play-enter {
+  animation: play-card-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes play-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.92) rotate(-3deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+}
+
+.status-pill.deck-pulse {
+  animation: deck-pulse 500ms ease-out;
+}
+
+@keyframes deck-pulse {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.09);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .players-table {
@@ -234,6 +324,19 @@ button:disabled {
   background: #fff8dd;
 }
 
+.players-table tr.draw-pulse td {
+  animation: draw-row-flash 1.15s ease-out;
+}
+
+@keyframes draw-row-flash {
+  0% {
+    background: #d5f4e7;
+  }
+  100% {
+    background: transparent;
+  }
+}
+
 .seat-tag {
   margin-left: 8px;
   font-size: 12px;
@@ -246,6 +349,11 @@ button:disabled {
 .seat-tag.turn {
   background: #ffe7a6;
   color: #7b4a00;
+}
+
+.seat-tag.drew {
+  background: #d8eefc;
+  color: #1c5179;
 }
 
 .hand-panel h3 {
@@ -278,6 +386,23 @@ button:disabled {
   transform: translateY(-2px);
 }
 
+.card-btn.incoming {
+  border-color: #2f8d6f;
+  box-shadow: 0 0 0 2px #9dddc6;
+  animation: hand-card-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes hand-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .card-main {
   font-size: 22px;
   font-weight: 700;
@@ -288,15 +413,18 @@ button:disabled {
   color: #60707c;
 }
 
-.card-red .card-main {
+.card-red .card-main,
+.card-red .table-card-main {
   color: var(--danger);
 }
 
-.card-black .card-main {
+.card-black .card-main,
+.card-black .table-card-main {
   color: #1a2b36;
 }
 
-.card-joker .card-main {
+.card-joker .card-main,
+.card-joker .table-card-main {
   color: #4b2b8b;
 }
 
@@ -335,5 +463,14 @@ button:disabled {
   .card-btn {
     min-width: 104px;
     min-height: 68px;
+  }
+
+  .table-card {
+    min-width: 74px;
+    min-height: 56px;
+  }
+
+  .table-card-main {
+    font-size: 24px;
   }
 }

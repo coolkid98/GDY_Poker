@@ -13,6 +13,7 @@ export interface UiLastPlay {
   declaredType: string;
   declaredKey: string;
   cardsCount: number;
+  cards: string[];
 }
 
 export interface UiRoomState {
