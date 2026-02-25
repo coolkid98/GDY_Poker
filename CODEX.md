@@ -175,6 +175,10 @@
    1. `backend/src/rooms/gdy-room.ts` 中不再重置 `lastPlay.cards = new ArraySchema(...)`
    2. 改为对现有 `ArraySchema` 原地 `splice + push`，避免丢失 childType 元数据
    3. 目的：修复 `TypeError: Cannot read properties of undefined (reading 'Symbol(Symbol.metadata)')`
+9. Git 提交清理（2026-02-25）：
+   1. 回退了包含 `node_modules`、`dist`、`.env` 的本地提交（未推送场景）
+   2. 新增根目录 `.gitignore`，统一忽略依赖、构建产物、环境变量与缓存文件
+   3. 重新生成干净提交：`6a335db`
 
 ## 10. 当前未完成项（必须继续）
 
