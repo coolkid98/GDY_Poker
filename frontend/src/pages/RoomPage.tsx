@@ -762,6 +762,8 @@ export const RoomPage = (): JSX.Element => {
               const showReadyNow = Boolean(showReadyOnTableSeat);
               const recent = seatRecentPlays[player.seat];
               const seatLastText = isTurnSeat ? "出牌中" : recent ? formatCards(recent.cards, 2) : "未出牌";
+              const visibleHandCardCount = Math.min(player.handCount, 12);
+              const hiddenHandCardCount = Math.max(player.handCount - visibleHandCardCount, 0);
               const seatClasses = [
                 "arena-seat",
                 isMe ? "me" : "",
@@ -785,8 +787,15 @@ export const RoomPage = (): JSX.Element => {
                     <strong>{player.nickname}</strong>
                     <span>#{player.seat}</span>
                   </div>
+                  <div className="arena-seat-hand">
+                    <div className="arena-seat-hand-fan" aria-label={`手牌 ${player.handCount} 张`}>
+                      {Array.from({ length: visibleHandCardCount }).map((_, index) => (
+                        <span key={`${player.sessionId}-hand-${index}`} className="arena-seat-hand-card" />
+                      ))}
+                      {hiddenHandCardCount > 0 && <span className="arena-seat-hand-more">+{hiddenHandCardCount}</span>}
+                    </div>
+                  </div>
                   <div className="arena-seat-meta">
-                    <span>{player.handCount} 张</span>
                     {showReadyNow && <span>{isReady ? "已准备" : "未准备"}</span>}
                     <span>{player.connected ? "在线" : "离线"}</span>
                   </div>
@@ -835,8 +844,6 @@ export const RoomPage = (): JSX.Element => {
                   <div className="player-side-meta">
                     <span>手牌 {player.handCount}</span>
                     <span>分数 {player.score}</span>
-                    <span>{player.ready ? "ready" : "idle"}</span>
-                    <span>{player.connected ? "online" : "offline"}</span>
                   </div>
                   <div className="player-side-action">
                     <span>{latest ? actionText(latest) : "本轮未行动"}</span>
