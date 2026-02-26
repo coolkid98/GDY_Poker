@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { HandPanel } from "../components/HandPanel";
 import { joinGameRoom, leaveGameRoom } from "../network/colyseus-client";
@@ -63,6 +63,13 @@ interface SeatLayoutItem {
   player: UiPlayer;
   left: number;
   top: number;
+}
+
+interface UiEventLog {
+  id: string;
+  text: string;
+  kind: "system" | "play" | "pass" | "draw" | "settlement" | "error";
+  cards?: string[];
 }
 
 const generateActionId = (): string => {
@@ -146,6 +153,7 @@ export const RoomPage = (): JSX.Element => {
   const [declaredType, setDeclaredType] = useState("single");
   const [declaredKey, setDeclaredKey] = useState("");
   const [roomRef, setRoomRef] = useState<any>(null);
+  const [eventLogs, setEventLogs] = useState<UiEventLog[]>([]);
 
   const [tablePlayView, setTablePlayView] = useState<UiLastPlay | null>(null);
   const [tableAnimTick, setTableAnimTick] = useState(0);
@@ -162,8 +170,32 @@ export const RoomPage = (): JSX.Element => {
   const deckPulseTimerRef = useRef<number | null>(null);
   const incomingCardTimerRef = useRef<number | null>(null);
 
-  const { nickname, sessionId, roomState, hand, logs, setConnected, setRoomMeta, setHand, setRoomState, appendLog, clearRoom } =
+  const { nickname, sessionId, roomState, hand, setConnected, setRoomMeta, setHand, setRoomState, appendLog, clearRoom } =
     useGameStore();
+
+  const resolveSeatName = useCallback((seat: number): string => {
+    const players = useGameStore.getState().roomState?.players ?? [];
+    return players.find((player) => player.seat === seat)?.nickname ?? `玩家${seat}`;
+  }, []);
+
+  const seatWithName = useCallback(
+    (seat: number): string => {
+      return `座位 ${seat}（${resolveSeatName(seat)}）`;
+    },
+    [resolveSeatName]
+  );
+
+  const pushEventLog = useCallback(
+    (payload: Omit<UiEventLog, "id">): void => {
+      const entry: UiEventLog = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        ...payload
+      };
+      setEventLogs((prev) => [...prev.slice(-79), entry]);
+      appendLog(payload.text);
+    },
+    [appendLog]
+  );
 
   useEffect(() => {
     return () => {
@@ -241,7 +273,10 @@ export const RoomPage = (): JSX.Element => {
         setRoomRef(room);
         setConnected(true);
         setRoomMeta(room.roomId, room.sessionId);
-        appendLog(`已进入房间 ${room.roomId}，我的 sessionId=${room.sessionId}`);
+        pushEventLog({
+          kind: "system",
+          text: `已进入房间 ${room.roomId}，我的 sessionId=${room.sessionId}`
+        });
 
         room.onStateChange((rawState: any) => {
           const players = normalizePlayers(toPlayersLike(rawState.players)).sort((a, b) => a.seat - b.seat);
@@ -279,7 +314,10 @@ export const RoomPage = (): JSX.Element => {
           setTablePlayView(null);
           setSeatRecentPlays({});
           setTableActions([]);
-          appendLog(`收到发牌：${message.cards?.length ?? 0} 张`);
+          pushEventLog({
+            kind: "system",
+            text: `收到发牌：${message.cards?.length ?? 0} 张`
+          });
         });
 
         room.onMessage("draw_card", (message: { cardId: string }) => {
@@ -295,7 +333,11 @@ export const RoomPage = (): JSX.Element => {
             setIncomingCardId(null);
           }, 900);
 
-          appendLog(`摸牌：${toCardLabel(message.cardId)}`);
+          pushEventLog({
+            kind: "draw",
+            text: `你摸牌：${toCardLabel(message.cardId)}`,
+            cards: [message.cardId]
+          });
         });
 
         room.onMessage("hand_sync", (message: { cards: string[] }) => {
@@ -305,7 +347,10 @@ export const RoomPage = (): JSX.Element => {
         room.onMessage("action_result", (message: { ok: boolean; reason?: string }) => {
           if (!message.ok) {
             const readable = reasonMap[message.reason ?? ""] ?? message.reason ?? "UNKNOWN";
-            appendLog(`操作失败：${readable}`);
+            pushEventLog({
+              kind: "error",
+              text: `操作失败：${readable}`
+            });
           }
         });
 
@@ -341,7 +386,11 @@ export const RoomPage = (): JSX.Element => {
             }
           ]);
 
-          appendLog(`座位 ${message.seat} 出牌 ${cards.length} 张（${message.declaredType}:${message.declaredKey}） ${formatCards(cards, 5)}`);
+          pushEventLog({
+            kind: "play",
+            text: `${seatWithName(message.seat)} 出牌 ${cards.length} 张（${message.declaredType}:${message.declaredKey}）`,
+            cards
+          });
         });
 
         room.onMessage("player_drew", (message: PlayerDrewMessage) => {
@@ -350,7 +399,10 @@ export const RoomPage = (): JSX.Element => {
           const store = useGameStore.getState();
           const me = store.roomState?.players.find((player) => player.sessionId === store.sessionId);
           if (me?.seat !== message.seat) {
-            appendLog(`座位 ${message.seat} 摸了 ${message.cardsCount} 张牌`);
+            pushEventLog({
+              kind: "draw",
+              text: `${seatWithName(message.seat)} 摸了 ${message.cardsCount} 张牌`
+            });
           }
         });
 
@@ -364,7 +416,10 @@ export const RoomPage = (): JSX.Element => {
               cards: []
             }
           ]);
-          appendLog(`座位 ${message.seat} 过牌`);
+          pushEventLog({
+            kind: "pass",
+            text: `${seatWithName(message.seat)} 过牌`
+          });
         });
 
         room.onMessage("round_reset", (message: { turnSeat: number }) => {
@@ -372,23 +427,44 @@ export const RoomPage = (): JSX.Element => {
           setTableAnimTick((tick) => tick + 1);
           setSeatRecentPlays({});
           setTableActions([]);
-          appendLog(`新一轮开始，座位 ${message.turnSeat} 先手`);
+          pushEventLog({
+            kind: "system",
+            text: `新一轮开始，${seatWithName(message.turnSeat)} 先手`
+          });
         });
 
         room.onMessage("settlement", (message: { winnerSeat: number }) => {
           setTablePlayView(null);
           setSeatRecentPlays({});
           setTableActions([]);
-          appendLog(`本局结算，赢家座位 ${message.winnerSeat}`);
+          pushEventLog({
+            kind: "settlement",
+            text: `本局结算，赢家 ${seatWithName(message.winnerSeat)}`
+          });
         });
 
         room.onLeave(() => {
-          appendLog("已离开房间");
+          const store = useGameStore.getState();
+          const me = store.roomState?.players.find((player) => player.sessionId === store.sessionId);
+          if (me) {
+            pushEventLog({
+              kind: "system",
+              text: `已离开房间：座位 ${me.seat}（${me.nickname}）`
+            });
+          } else {
+            pushEventLog({
+              kind: "system",
+              text: `已离开房间（${nickname}）`
+            });
+          }
           setConnected(false);
         });
       })
       .catch((error: unknown) => {
-        appendLog(`入房失败: ${String(error)}`);
+        pushEventLog({
+          kind: "error",
+          text: `入房失败: ${String(error)}`
+        });
         navigate("/", { replace: true });
       });
 
@@ -398,7 +474,7 @@ export const RoomPage = (): JSX.Element => {
         void leaveGameRoom();
       }
     };
-  }, [appendLog, navigate, nickname, setConnected, setHand, setRoomMeta, setRoomState]);
+  }, [navigate, nickname, pushEventLog, seatWithName, setConnected, setHand, setRoomMeta, setRoomState]);
 
   const myPlayer = useMemo(() => {
     if (!roomState) {
@@ -415,6 +491,7 @@ export const RoomPage = (): JSX.Element => {
   const readyDisabled = roomState?.status === "PLAYING" || roomState?.status === "DEALING";
   const passDisabled = !isMyTurn || !hasLastPlay;
   const playDisabled = !isMyTurn || selectedCards.length === 0 || (selectedHasWildcard && (!declaredType || !declaredKey));
+  const replayDisabled = roomState?.status !== "READY" || !myPlayer || myPlayer.ready;
 
   const tablePlay = tablePlayView ?? roomState?.lastPlay ?? null;
   const players = roomState?.players ?? [];
@@ -465,6 +542,19 @@ export const RoomPage = (): JSX.Element => {
     setSelectedCards([]);
   };
 
+  const sendReplayReady = (): void => {
+    if (replayDisabled) {
+      return;
+    }
+    roomRef?.send("ready", { ready: true });
+    if (myPlayer) {
+      pushEventLog({
+        kind: "system",
+        text: `你已选择同房间再开一把：座位 ${myPlayer.seat}（${myPlayer.nickname}）已准备`
+      });
+    }
+  };
+
   const leaveRoom = async (): Promise<void> => {
     await leaveGameRoom();
     clearRoom();
@@ -493,6 +583,9 @@ export const RoomPage = (): JSX.Element => {
           </button>
           <button type="button" disabled={readyDisabled} onClick={() => sendReady(false)}>
             取消准备
+          </button>
+          <button type="button" className="replay-btn" disabled={replayDisabled} onClick={sendReplayReady}>
+            同房间再开一把
           </button>
           <button type="button" disabled={passDisabled} onClick={sendPass}>
             过牌
@@ -546,7 +639,7 @@ export const RoomPage = (): JSX.Element => {
                 <h4>桌面出牌区</h4>
                 {drawBanner && (
                   <span key={`draw-${drawBanner.tick}`} className="draw-banner">
-                    座位 {drawBanner.seat} 摸了 1 张牌
+                    {seatWithName(drawBanner.seat)} 摸了 1 张牌
                   </span>
                 )}
               </div>
@@ -677,9 +770,18 @@ export const RoomPage = (): JSX.Element => {
       <section className="panel">
         <h3>事件日志</h3>
         <div className="log-list">
-          {logs.map((line, index) => (
-            <div key={`${index}-${line}`} className="log-line">
-              {line}
+          {eventLogs.map((entry) => (
+            <div key={entry.id} className={`log-line ${entry.kind}`}>
+              <span>{entry.text}</span>
+              {entry.cards && entry.cards.length > 0 && (
+                <div className="log-cards">
+                  {entry.cards.map((cardId, index) => (
+                    <span key={`${entry.id}-${cardId}-${index}`} className={`log-card-mini ${cardThemeClass(cardId)}`}>
+                      {toCardLabel(cardId)}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>

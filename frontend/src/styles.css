@@ -206,6 +206,12 @@ button:disabled {
   color: #31424f;
 }
 
+.replay-btn {
+  border-color: #835f15;
+  background: linear-gradient(180deg, #dba93f 0%, #b17e1d 100%);
+  color: #fff8e1;
+}
+
 .action-wrap {
   display: flex;
   flex-wrap: wrap;
@@ -652,13 +658,25 @@ button:disabled {
   color: var(--danger);
 }
 
+.card-red.log-card-mini {
+  color: var(--danger);
+}
+
 .card-black .card-main,
 .card-black .table-card-main {
   color: #1a2b36;
 }
 
+.card-black.log-card-mini {
+  color: #1a2b36;
+}
+
 .card-joker .card-main,
 .card-joker .table-card-main {
+  color: #4b2b8b;
+}
+
+.card-joker.log-card-mini {
   color: #4b2b8b;
 }
 
@@ -673,6 +691,44 @@ button:disabled {
 .log-line {
   font-size: 14px;
   color: #445865;
+  border-bottom: 1px dashed #d7cfbf;
+  padding: 4px 0 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.log-line.play {
+  color: #2f4f62;
+}
+
+.log-line.settlement {
+  color: #6f4a08;
+  font-weight: 600;
+}
+
+.log-line.error {
+  color: #8c2c2c;
+}
+
+.log-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.log-card-mini {
+  min-width: 44px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid #39505e;
+  background: linear-gradient(180deg, #ffffff 0%, #eef3f8 100%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 @media (max-width: 1160px) {
