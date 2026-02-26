@@ -1020,17 +1020,17 @@ button:disabled {
   }
 
   .arena-board {
-    min-height: 660px;
+    min-height: 620px;
   }
 
   .arena-table {
-    width: min(82%, 640px);
-    height: 56%;
-    padding: 14px 18px;
+    width: min(86%, 640px);
+    height: 52%;
+    padding: 12px 14px;
   }
 
   .arena-seat {
-    width: 128px;
+    width: 116px;
   }
 
   .arena-seat-hand-card {
@@ -1071,45 +1071,175 @@ button:disabled {
 
 @media (max-width: 640px) {
   .page {
-    padding: 14px 10px 24px;
+    padding: 12px 8px 20px;
+    gap: 12px;
+  }
+
+  h2 {
+    font-size: 22px;
   }
 
   .toolbar {
     flex-direction: column;
     align-items: flex-start;
+    gap: 8px;
+  }
+
+  .toolbar .ghost-btn {
+    height: 36px;
+    min-width: 88px;
   }
 
   .status-row {
     gap: 8px;
+    margin-bottom: 10px;
   }
 
   .status-pill {
     height: 28px;
-    padding: 0 10px;
-    font-size: 13px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  .action-wrap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .action-wrap button {
+    width: 100%;
+    min-width: 0;
+    height: 38px;
+    font-size: 15px;
+  }
+
+  .hint-line {
+    margin-top: 8px;
+    font-size: 15px;
   }
 
   .arena-board {
-    min-height: 700px;
+    min-height: 560px;
+    border-radius: 14px;
+  }
+
+  .arena-table {
+    width: 90%;
+    height: 50%;
+    top: 53%;
+    padding: 10px 10px 12px;
+  }
+
+  .table-stage-head h4 {
+    font-size: 18px;
+  }
+
+  .draw-banner {
+    height: 24px;
+    padding: 0 9px;
+    font-size: 11px;
+  }
+
+  .table-current {
+    min-height: 84px;
+    padding: 8px;
+  }
+
+  .table-history-title {
+    font-size: 11px;
+  }
+
+  .table-history-list {
+    min-height: 24px;
+    gap: 5px;
+  }
+
+  .trail-item {
+    height: 22px;
+    padding: 0 7px;
+    font-size: 10px;
   }
 
   .arena-seat {
-    width: 112px;
-    padding: 6px;
+    width: 96px;
+    padding: 4px;
   }
 
   .arena-seat-hand-card {
-    width: 12px;
-    height: 17px;
-    margin-left: -6px;
+    width: 10px;
+    height: 15px;
+    margin-left: -5px;
   }
 
   .arena-seat-head strong {
-    font-size: 12px;
+    font-size: 11px;
+  }
+
+  .arena-seat-head span {
+    font-size: 10px;
+  }
+
+  .arena-seat-meta {
+    gap: 6px;
+    font-size: 10px;
+  }
+
+  .arena-seat-meta span:last-child {
+    display: none;
   }
 
   .arena-seat-meta,
   .arena-seat-last {
-    font-size: 11px;
+    font-size: 10px;
+  }
+
+  .arena-seat-last {
+    min-height: 20px;
+  }
+
+  .arena-seat-turn-tip {
+    display: none;
+  }
+
+  .players-sidebar {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .players-sidebar h3 {
+    font-size: 22px;
+  }
+
+  .player-side-item {
+    padding: 8px;
+    gap: 5px;
+  }
+
+  .player-side-head strong {
+    font-size: 15px;
+  }
+
+  .played-visual-grid {
+    max-height: 220px;
+  }
+
+  .played-visual-item {
+    width: 58px;
+  }
+
+  .played-visual-card {
+    width: 50px;
+    height: 64px;
+    font-size: 18px;
+  }
+
+  .card-btn {
+    min-width: 92px;
+    min-height: 62px;
+  }
+
+  .card-main {
+    font-size: 20px;
   }
 }

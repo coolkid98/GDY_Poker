@@ -128,6 +128,19 @@ const formatCards = (cards: string[], limit: number): string => {
   return `${labels.slice(0, limit).join(" ")} +${labels.length - limit}`;
 };
 
+const getViewportProfile = (): "mobile" | "tablet" | "desktop" => {
+  if (typeof window === "undefined") {
+    return "desktop";
+  }
+  if (window.innerWidth <= 640) {
+    return "mobile";
+  }
+  if (window.innerWidth <= 880) {
+    return "tablet";
+  }
+  return "desktop";
+};
+
 const buildSeatLayout = (players: UiPlayer[], mySeat: number | null): SeatLayoutItem[] => {
   if (players.length === 0) {
     return [];
@@ -138,8 +151,29 @@ const buildSeatLayout = (players: UiPlayer[], mySeat: number | null): SeatLayout
   const baseStartDeg = -90;
   const myIndex = mySeat === null ? -1 : sorted.findIndex((player) => player.seat === mySeat);
   const rotation = myIndex >= 0 ? 90 - (baseStartDeg + step * myIndex) : 0;
-  const radiusX = 34;
-  const radiusY = 30;
+
+  const viewport = getViewportProfile();
+  let radiusX = 34;
+  let radiusY = 30;
+  if (viewport === "tablet") {
+    radiusX = 36;
+    radiusY = 33;
+  }
+  if (viewport === "mobile") {
+    if (sorted.length <= 2) {
+      radiusX = 0;
+      radiusY = 40;
+    } else if (sorted.length <= 4) {
+      radiusX = 34;
+      radiusY = 40;
+    } else if (sorted.length <= 6) {
+      radiusX = 40;
+      radiusY = 39;
+    } else {
+      radiusX = 42;
+      radiusY = 41;
+    }
+  }
 
   return sorted.map((player, index) => {
     const angle = ((baseStartDeg + step * index + rotation) * Math.PI) / 180;
