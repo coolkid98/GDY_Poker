@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { HandPanel } from "../components/HandPanel";
 import { joinGameRoom, leaveGameRoom } from "../network/colyseus-client";
@@ -77,6 +77,11 @@ interface PlayedVisualCard {
   seat: number;
   nickname: string;
   cardId: string;
+}
+
+interface DrawFlightItem {
+  id: string;
+  seat: number;
 }
 
 const generateActionId = (): string => {
@@ -172,11 +177,13 @@ export const RoomPage = (): JSX.Element => {
   const [seatRecentPlays, setSeatRecentPlays] = useState<Record<number, SeatRecentPlay>>({});
   const [tableActions, setTableActions] = useState<TableActionItem[]>([]);
   const [playedVisualCards, setPlayedVisualCards] = useState<PlayedVisualCard[]>([]);
+  const [drawFlights, setDrawFlights] = useState<DrawFlightItem[]>([]);
 
   const drawPulseTimersRef = useRef<Record<number, number>>({});
   const drawBannerTimerRef = useRef<number | null>(null);
   const deckPulseTimerRef = useRef<number | null>(null);
   const incomingCardTimerRef = useRef<number | null>(null);
+  const flightTimersRef = useRef<Record<string, number>>({});
 
   const { nickname, sessionId, roomState, hand, setConnected, setRoomMeta, setHand, setRoomState, appendLog, clearRoom } =
     useGameStore();
@@ -219,6 +226,10 @@ export const RoomPage = (): JSX.Element => {
       if (incomingCardTimerRef.current !== null) {
         window.clearTimeout(incomingCardTimerRef.current);
       }
+      Object.values(flightTimersRef.current).forEach((timerId) => {
+        window.clearTimeout(timerId);
+      });
+      flightTimersRef.current = {};
     };
   }, []);
 
@@ -264,6 +275,13 @@ export const RoomPage = (): JSX.Element => {
       }
       deckPulseTimerRef.current = window.setTimeout(() => {
         setDeckPulse(false);
+      }, 760);
+
+      const flightId = `f-${seat}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      setDrawFlights((prev) => [...prev.slice(-5), { id: flightId, seat }]);
+      flightTimersRef.current[flightId] = window.setTimeout(() => {
+        setDrawFlights((prev) => prev.filter((item) => item.id !== flightId));
+        delete flightTimersRef.current[flightId];
       }, 760);
     };
 
@@ -323,6 +341,7 @@ export const RoomPage = (): JSX.Element => {
           setSeatRecentPlays({});
           setTableActions([]);
           setPlayedVisualCards([]);
+          setDrawFlights([]);
           pushEventLog({
             kind: "system",
             text: `收到发牌：${message.cards?.length ?? 0} 张`
@@ -456,6 +475,7 @@ export const RoomPage = (): JSX.Element => {
           setTablePlayView(null);
           setSeatRecentPlays({});
           setTableActions([]);
+          setDrawFlights([]);
           pushEventLog({
             kind: "settlement",
             text: `本局结算，赢家 ${seatWithName(message.winnerSeat)}`
@@ -511,10 +531,21 @@ export const RoomPage = (): JSX.Element => {
   const passDisabled = !isMyTurn || !hasLastPlay;
   const playDisabled = !isMyTurn || selectedCards.length === 0 || (selectedHasWildcard && (!declaredType || !declaredKey));
   const replayDisabled = roomState?.status !== "READY" || !myPlayer || myPlayer.ready;
+  const showReadyBadgeInSidebar = roomState?.status === "WAITING" || roomState?.status === "READY";
 
   const tablePlay = tablePlayView ?? roomState?.lastPlay ?? null;
   const players = roomState?.players ?? [];
   const seatLayout = useMemo(() => buildSeatLayout(players, myPlayer?.seat ?? null), [players, myPlayer?.seat]);
+  const seatPositionMap = useMemo(() => {
+    const map: Record<number, { left: number; top: number }> = {};
+    for (const seat of seatLayout) {
+      map[seat.player.seat] = {
+        left: seat.left,
+        top: seat.top
+      };
+    }
+    return map;
+  }, [seatLayout]);
   const seatLatestAction = useMemo(() => {
     const map: Record<number, TableActionItem> = {};
     for (const action of tableActions) {
@@ -709,6 +740,18 @@ export const RoomPage = (): JSX.Element => {
               </div>
             </div>
 
+            <div className="draw-flight-layer">
+              {drawFlights.map((flight) => {
+                const position = seatPositionMap[flight.seat] ?? { left: 50, top: 50 };
+                const style = {
+                  "--to-left": `${position.left}%`,
+                  "--to-top": `${position.top}%`
+                } as CSSProperties;
+
+                return <div key={flight.id} className="draw-flight-card" style={style} />;
+              })}
+            </div>
+
             {seatLayout.map((seat) => {
               const player = seat.player;
               const isMe = player.sessionId === myPlayer?.sessionId;
@@ -776,7 +819,9 @@ export const RoomPage = (): JSX.Element => {
                   <div className="player-side-head">
                     <span className="seat-index">座位 {player.seat}</span>
                     <strong>{player.nickname}</strong>
-                    <span className={`ready-badge ${isReady ? "on" : "off"}`}>{isReady ? "已准备" : "未准备"}</span>
+                    {showReadyBadgeInSidebar && (
+                      <span className={`ready-badge ${isReady ? "on" : "off"}`}>{isReady ? "已准备" : "未准备"}</span>
+                    )}
                     {isMe && <span className="seat-tag">我</span>}
                     {isTurnSeat && <span className="seat-tag turn">出牌中</span>}
                     {isDrawPulse && <span className="seat-tag drew">摸牌</span>}
@@ -829,7 +874,7 @@ export const RoomPage = (): JSX.Element => {
           </div>
           <aside className="played-visual-panel">
             <div className="played-visual-head">
-              <h4>已出牌可视化</h4>
+              <h4>已出过的牌</h4>
               <span>{playedVisualCards.length} 张</span>
             </div>
             <div className="played-visual-grid">

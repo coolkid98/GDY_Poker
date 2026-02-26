@@ -317,6 +317,47 @@ button:disabled {
   }
 }
 
+.draw-flight-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.draw-flight-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 48px;
+  height: 66px;
+  border-radius: 8px;
+  border: 1px solid #203847;
+  background:
+    radial-gradient(circle at 65% 20%, #ffffff66 0%, transparent 42%),
+    repeating-linear-gradient(-45deg, #2e4c60 0 6px, #3b5f76 6px 12px);
+  box-shadow: 0 5px 14px #00000045;
+  transform: translate(-50%, -50%);
+  animation: draw-flight 760ms cubic-bezier(0.2, 0.9, 0.24, 1) forwards;
+}
+
+@keyframes draw-flight {
+  0% {
+    left: 50%;
+    top: 50%;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.74) rotate(-24deg);
+  }
+  16% {
+    opacity: 1;
+  }
+  100% {
+    left: var(--to-left);
+    top: var(--to-top);
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.92) rotate(8deg);
+  }
+}
+
 .table-current {
   min-height: 104px;
   border: 1px dashed #d7caab;
@@ -946,6 +987,11 @@ button:disabled {
     width: 54px;
     height: 70px;
     font-size: 20px;
+  }
+
+  .draw-flight-card {
+    width: 42px;
+    height: 58px;
   }
 }
 

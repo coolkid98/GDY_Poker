@@ -21,7 +21,7 @@ export const LobbyPage = (): JSX.Element => {
   return (
     <main className="page page-lobby">
       <section className="panel">
-        <h1>干瞪眼 Web</h1>
+        <h1>干瞪眼</h1>
         <p className="muted">当前后端地址：{getEndpoint()}</p>
         <form onSubmit={onEnterRoom} className="form">
           <label htmlFor="nickname">昵称</label>
