@@ -891,6 +891,20 @@ export const RoomPage = (): JSX.Element => {
       </section>
 
       <section className="panel">
+        <div className="hand-shortcuts">
+          <div className="hand-shortcuts-info">
+            <strong>手牌快捷操作</strong>
+            <span>{isMyTurn ? "当前可操作" : "等待回合"} | 已选 {selectedCards.length} 张</span>
+          </div>
+          <div className="hand-shortcuts-actions">
+            <button type="button" disabled={passDisabled} onClick={sendPass}>
+              过牌
+            </button>
+            <button type="button" disabled={playDisabled} onClick={sendPlay}>
+              出牌
+            </button>
+          </div>
+        </div>
         <HandPanel
           hand={hand}
           selected={selectedCards}

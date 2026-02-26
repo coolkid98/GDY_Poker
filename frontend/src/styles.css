@@ -766,6 +766,43 @@ button:disabled {
   margin-bottom: 12px;
 }
 
+.hand-shortcuts {
+  margin-bottom: 12px;
+  border: 1px dashed #c9bda9;
+  border-radius: 12px;
+  background: #fff9ee;
+  padding: 9px 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.hand-shortcuts-info {
+  display: grid;
+  gap: 2px;
+}
+
+.hand-shortcuts-info strong {
+  font-size: 14px;
+}
+
+.hand-shortcuts-info span {
+  font-size: 12px;
+  color: #5f707a;
+}
+
+.hand-shortcuts-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.hand-shortcuts-actions button {
+  min-width: 84px;
+  height: 34px;
+  font-size: 14px;
+}
+
 .cards-grid {
   display: flex;
   flex-wrap: wrap;
@@ -990,19 +1027,12 @@ button:disabled {
 
 @media (max-width: 1160px) {
   .battle-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .event-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 10px;
   }
 
   .arena-board {
     min-height: 620px;
-  }
-
-  .players-sidebar {
-    order: 2;
   }
 }
 
@@ -1017,6 +1047,10 @@ button:disabled {
 
   .field-row {
     grid-template-columns: 1fr;
+  }
+
+  .battle-layout {
+    grid-template-columns: minmax(0, 1fr) 190px;
   }
 
   .arena-board {
@@ -1067,6 +1101,27 @@ button:disabled {
     width: 42px;
     height: 58px;
   }
+
+  .players-sidebar h3 {
+    font-size: 20px;
+  }
+
+  .player-side-item {
+    padding: 7px;
+  }
+
+  .player-side-head strong {
+    font-size: 14px;
+  }
+
+  .player-side-meta {
+    font-size: 11px;
+    gap: 6px;
+  }
+
+  .player-side-action {
+    font-size: 11px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1101,6 +1156,11 @@ button:disabled {
     font-size: 12px;
   }
 
+  .battle-layout {
+    grid-template-columns: minmax(0, 1fr) 146px;
+    gap: 8px;
+  }
+
   .action-wrap {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1117,6 +1177,23 @@ button:disabled {
   .hint-line {
     margin-top: 8px;
     font-size: 15px;
+  }
+
+  .hand-shortcuts {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .hand-shortcuts-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .hand-shortcuts-actions button {
+    width: 100%;
+    min-width: 0;
   }
 
   .arena-board {
@@ -1203,21 +1280,40 @@ button:disabled {
   }
 
   .players-sidebar {
-    padding: 10px;
-    gap: 10px;
+    padding: 8px;
+    gap: 8px;
   }
 
   .players-sidebar h3 {
-    font-size: 22px;
+    font-size: 17px;
   }
 
   .player-side-item {
-    padding: 8px;
-    gap: 5px;
+    padding: 6px;
+    gap: 4px;
   }
 
   .player-side-head strong {
-    font-size: 15px;
+    font-size: 13px;
+  }
+
+  .player-side-head {
+    gap: 4px;
+  }
+
+  .seat-tag {
+    margin-left: 4px;
+    font-size: 10px;
+    padding: 1px 6px;
+  }
+
+  .player-side-meta {
+    font-size: 10px;
+    gap: 4px;
+  }
+
+  .player-side-action {
+    display: none;
   }
 
   .played-visual-grid {
