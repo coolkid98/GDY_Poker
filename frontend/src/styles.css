@@ -470,8 +470,12 @@ button:disabled {
 }
 
 .arena-seat.turn {
-  border-color: #f4d17a;
-  box-shadow: 0 0 0 2px #f4d17a66, 0 8px 18px #0000002f;
+  border-color: #e39a12;
+  background: linear-gradient(180deg, #fff4d6 0%, #f6e5bb 100%);
+  box-shadow:
+    0 0 0 3px #e39a1299,
+    0 0 20px #e39a1266,
+    0 10px 20px #00000033;
 }
 
 .arena-seat.me {
@@ -512,6 +516,10 @@ button:disabled {
   font-size: 14px;
 }
 
+.arena-seat.turn .arena-seat-head strong {
+  color: #7a4200;
+}
+
 .arena-seat-head span {
   font-size: 12px;
   color: #61717e;
@@ -540,9 +548,31 @@ button:disabled {
   padding: 0 6px;
 }
 
+.arena-seat-last.turn {
+  border-color: #c07f0d;
+  background: linear-gradient(180deg, #ffe2a6 0%, #f8cc73 100%);
+  color: #5f3500;
+  font-weight: 700;
+}
+
 .arena-seat-last.empty {
   color: #71838e;
   font-weight: 500;
+}
+
+.arena-seat-turn-tip {
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  height: 18px;
+  padding: 0 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: #734100;
+  background: #ffdb9a;
+  border: 1px solid #c8850f;
 }
 
 .players-sidebar {

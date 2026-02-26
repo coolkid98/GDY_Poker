@@ -532,6 +532,7 @@ export const RoomPage = (): JSX.Element => {
   const playDisabled = !isMyTurn || selectedCards.length === 0 || (selectedHasWildcard && (!declaredType || !declaredKey));
   const replayDisabled = roomState?.status !== "READY" || !myPlayer || myPlayer.ready;
   const showReadyBadgeInSidebar = roomState?.status === "WAITING" || roomState?.status === "READY";
+  const showReadyOnTableSeat = roomState?.status === "WAITING" || roomState?.status === "READY";
 
   const tablePlay = tablePlayView ?? roomState?.lastPlay ?? null;
   const players = roomState?.players ?? [];
@@ -758,13 +759,15 @@ export const RoomPage = (): JSX.Element => {
               const isTurnSeat = player.seat === roomState?.turnSeat;
               const isDrawPulse = Boolean(drawPulseSeats[player.seat]);
               const isReady = player.ready;
+              const showReadyNow = Boolean(showReadyOnTableSeat);
               const recent = seatRecentPlays[player.seat];
+              const seatLastText = isTurnSeat ? "出牌中" : recent ? formatCards(recent.cards, 2) : "未出牌";
               const seatClasses = [
                 "arena-seat",
                 isMe ? "me" : "",
                 isTurnSeat ? "turn" : "",
                 isDrawPulse ? "drew" : "",
-                isReady ? "ready" : ""
+                showReadyNow && isReady ? "ready" : ""
               ]
                 .filter(Boolean)
                 .join(" ");
@@ -784,12 +787,15 @@ export const RoomPage = (): JSX.Element => {
                   </div>
                   <div className="arena-seat-meta">
                     <span>{player.handCount} 张</span>
-                    <span>{isReady ? "已准备" : "未准备"}</span>
+                    {showReadyNow && <span>{isReady ? "已准备" : "未准备"}</span>}
                     <span>{player.connected ? "在线" : "离线"}</span>
                   </div>
-                  <div className={`arena-seat-last ${recent ? "" : "empty"}`}>
-                    {recent ? formatCards(recent.cards, 2) : "未出牌"}
-                  </div>
+                  <div className={`arena-seat-last ${isTurnSeat ? "turn" : recent ? "" : "empty"}`}>{seatLastText}</div>
+                  {isTurnSeat && (
+                    <div className="arena-seat-turn-tip" aria-hidden="true">
+                      当前回合
+                    </div>
+                  )}
                 </div>
               );
             })}
