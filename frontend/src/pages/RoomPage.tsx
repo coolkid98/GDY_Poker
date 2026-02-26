@@ -72,6 +72,13 @@ interface UiEventLog {
   cards?: string[];
 }
 
+interface PlayedVisualCard {
+  id: string;
+  seat: number;
+  nickname: string;
+  cardId: string;
+}
+
 const generateActionId = (): string => {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -164,6 +171,7 @@ export const RoomPage = (): JSX.Element => {
   const [incomingPulseTick, setIncomingPulseTick] = useState(0);
   const [seatRecentPlays, setSeatRecentPlays] = useState<Record<number, SeatRecentPlay>>({});
   const [tableActions, setTableActions] = useState<TableActionItem[]>([]);
+  const [playedVisualCards, setPlayedVisualCards] = useState<PlayedVisualCard[]>([]);
 
   const drawPulseTimersRef = useRef<Record<number, number>>({});
   const drawBannerTimerRef = useRef<number | null>(null);
@@ -314,6 +322,7 @@ export const RoomPage = (): JSX.Element => {
           setTablePlayView(null);
           setSeatRecentPlays({});
           setTableActions([]);
+          setPlayedVisualCards([]);
           pushEventLog({
             kind: "system",
             text: `收到发牌：${message.cards?.length ?? 0} 张`
@@ -356,6 +365,7 @@ export const RoomPage = (): JSX.Element => {
 
         room.onMessage("played", (message: PlayedMessage) => {
           const cards = sortCardIds(message.cards ?? []);
+          const seatName = resolveSeatName(message.seat);
           setTablePlayView({
             seat: message.seat,
             declaredType: message.declaredType,
@@ -385,6 +395,15 @@ export const RoomPage = (): JSX.Element => {
               declaredKey: message.declaredKey
             }
           ]);
+          setPlayedVisualCards((prev) => {
+            const appended = cards.map((cardId, index) => ({
+              id: `${Date.now()}-${message.seat}-${index}-${Math.random().toString(36).slice(2, 6)}`,
+              seat: message.seat,
+              nickname: seatName,
+              cardId
+            }));
+            return [...prev, ...appended].slice(-300);
+          });
 
           pushEventLog({
             kind: "play",
@@ -474,7 +493,7 @@ export const RoomPage = (): JSX.Element => {
         void leaveGameRoom();
       }
     };
-  }, [navigate, nickname, pushEventLog, seatWithName, setConnected, setHand, setRoomMeta, setRoomState]);
+  }, [navigate, nickname, pushEventLog, resolveSeatName, seatWithName, setConnected, setHand, setRoomMeta, setRoomState]);
 
   const myPlayer = useMemo(() => {
     if (!roomState) {
@@ -503,6 +522,13 @@ export const RoomPage = (): JSX.Element => {
     }
     return map;
   }, [tableActions]);
+  const playedCountBySeat = useMemo(() => {
+    const map: Record<number, number> = {};
+    for (const item of playedVisualCards) {
+      map[item.seat] = (map[item.seat] ?? 0) + 1;
+    }
+    return map;
+  }, [playedVisualCards]);
 
   const toggleCard = (cardId: string): void => {
     setSelectedCards((prev) => {
@@ -688,12 +714,14 @@ export const RoomPage = (): JSX.Element => {
               const isMe = player.sessionId === myPlayer?.sessionId;
               const isTurnSeat = player.seat === roomState?.turnSeat;
               const isDrawPulse = Boolean(drawPulseSeats[player.seat]);
+              const isReady = player.ready;
               const recent = seatRecentPlays[player.seat];
               const seatClasses = [
                 "arena-seat",
                 isMe ? "me" : "",
                 isTurnSeat ? "turn" : "",
-                isDrawPulse ? "drew" : ""
+                isDrawPulse ? "drew" : "",
+                isReady ? "ready" : ""
               ]
                 .filter(Boolean)
                 .join(" ");
@@ -713,6 +741,7 @@ export const RoomPage = (): JSX.Element => {
                   </div>
                   <div className="arena-seat-meta">
                     <span>{player.handCount} 张</span>
+                    <span>{isReady ? "已准备" : "未准备"}</span>
                     <span>{player.connected ? "在线" : "离线"}</span>
                   </div>
                   <div className={`arena-seat-last ${recent ? "" : "empty"}`}>
@@ -731,14 +760,23 @@ export const RoomPage = (): JSX.Element => {
               const isMe = player.sessionId === myPlayer?.sessionId;
               const isTurnSeat = player.seat === roomState?.turnSeat;
               const isDrawPulse = Boolean(drawPulseSeats[player.seat]);
+              const isReady = player.ready;
               const latest = seatLatestAction[player.seat];
-              const rowClass = ["player-side-item", isMe ? "me" : "", isDrawPulse ? "draw-pulse" : ""].filter(Boolean).join(" ");
+              const rowClass = [
+                "player-side-item",
+                isMe ? "me" : "",
+                isDrawPulse ? "draw-pulse" : "",
+                isReady ? "ready" : ""
+              ]
+                .filter(Boolean)
+                .join(" ");
 
               return (
                 <div key={player.sessionId} className={rowClass}>
                   <div className="player-side-head">
                     <span className="seat-index">座位 {player.seat}</span>
                     <strong>{player.nickname}</strong>
+                    <span className={`ready-badge ${isReady ? "on" : "off"}`}>{isReady ? "已准备" : "未准备"}</span>
                     {isMe && <span className="seat-tag">我</span>}
                     {isTurnSeat && <span className="seat-tag turn">出牌中</span>}
                     {isDrawPulse && <span className="seat-tag drew">摸牌</span>}
@@ -749,7 +787,10 @@ export const RoomPage = (): JSX.Element => {
                     <span>{player.ready ? "ready" : "idle"}</span>
                     <span>{player.connected ? "online" : "offline"}</span>
                   </div>
-                  <div className="player-side-action">{latest ? actionText(latest) : "本轮未行动"}</div>
+                  <div className="player-side-action">
+                    <span>{latest ? actionText(latest) : "本轮未行动"}</span>
+                    <span className="played-count">已出牌 {playedCountBySeat[player.seat] ?? 0} 张</span>
+                  </div>
                 </div>
               );
             })}
@@ -769,21 +810,43 @@ export const RoomPage = (): JSX.Element => {
 
       <section className="panel">
         <h3>事件日志</h3>
-        <div className="log-list">
-          {eventLogs.map((entry) => (
-            <div key={entry.id} className={`log-line ${entry.kind}`}>
-              <span>{entry.text}</span>
-              {entry.cards && entry.cards.length > 0 && (
-                <div className="log-cards">
-                  {entry.cards.map((cardId, index) => (
-                    <span key={`${entry.id}-${cardId}-${index}`} className={`log-card-mini ${cardThemeClass(cardId)}`}>
-                      {toCardLabel(cardId)}
+        <div className="event-layout">
+          <div className="log-list">
+            {eventLogs.map((entry) => (
+              <div key={entry.id} className={`log-line ${entry.kind}`}>
+                <span>{entry.text}</span>
+                {entry.cards && entry.cards.length > 0 && (
+                  <div className="log-cards">
+                    {entry.cards.map((cardId, index) => (
+                      <span key={`${entry.id}-${cardId}-${index}`} className={`log-card-mini ${cardThemeClass(cardId)}`}>
+                        {toCardLabel(cardId)}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <aside className="played-visual-panel">
+            <div className="played-visual-head">
+              <h4>已出牌可视化</h4>
+              <span>{playedVisualCards.length} 张</span>
+            </div>
+            <div className="played-visual-grid">
+              {playedVisualCards.length === 0 ? (
+                <div className="played-visual-empty">本局还没有出牌记录</div>
+              ) : (
+                playedVisualCards.map((item) => (
+                  <div key={item.id} className="played-visual-item">
+                    <span className="played-visual-seat">
+                      {item.seat} · {item.nickname}
                     </span>
-                  ))}
-                </div>
+                    <span className={`played-visual-card ${cardThemeClass(item.cardId)}`}>{toCardLabel(item.cardId)}</span>
+                  </div>
+                ))
               )}
             </div>
-          ))}
+          </aside>
         </div>
       </section>
     </main>
