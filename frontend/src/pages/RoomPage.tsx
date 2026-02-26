@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { HandPanel } from "../components/HandPanel";
 import { joinGameRoom, leaveGameRoom } from "../network/colyseus-client";
 import { normalizePlayers, useGameStore } from "../store/use-game-store";
-import type { UiLastPlay } from "../types/game-state";
+import type { UiLastPlay, UiPlayer } from "../types/game-state";
 import { cardThemeClass, hasWildcard, sortCardIds, toCardLabel } from "../utils/cards";
 
 const rankOptions = ["3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A", "2"];
@@ -43,6 +43,28 @@ interface PlayerDrewMessage {
   handCount: number;
 }
 
+interface SeatRecentPlay {
+  cards: string[];
+  declaredType: string;
+  declaredKey: string;
+  tick: number;
+}
+
+interface TableActionItem {
+  id: string;
+  seat: number;
+  kind: "play" | "pass";
+  cards: string[];
+  declaredType?: string;
+  declaredKey?: string;
+}
+
+interface SeatLayoutItem {
+  player: UiPlayer;
+  left: number;
+  top: number;
+}
+
 const generateActionId = (): string => {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -50,33 +72,72 @@ const generateActionId = (): string => {
   return `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 };
 
-const toPlayersLike = (input: any): Record<string, any> => {
+const toPlayersLike = (input: unknown): Record<string, unknown> => {
   if (!input) {
     return {};
   }
-  if (typeof input.forEach === "function") {
-    const output: Record<string, any> = {};
-    input.forEach((value: any, key: string) => {
+  if (typeof input === "object" && input !== null && "forEach" in input && typeof (input as { forEach: unknown }).forEach === "function") {
+    const output: Record<string, unknown> = {};
+    (input as { forEach: (callback: (value: unknown, key: string) => void) => void }).forEach((value, key) => {
       output[key] = value;
     });
     return output;
   }
-  return input as Record<string, any>;
+  return input as Record<string, unknown>;
 };
 
-const toArray = (input: any): string[] => {
+const toArray = (input: unknown): string[] => {
   if (!input) {
     return [];
   }
   if (Array.isArray(input)) {
     return input as string[];
   }
-  if (typeof input.forEach === "function") {
+  if (typeof input === "object" && input !== null && "forEach" in input && typeof (input as { forEach: unknown }).forEach === "function") {
     const result: string[] = [];
-    input.forEach((value: string) => result.push(value));
+    (input as { forEach: (callback: (value: string) => void) => void }).forEach((value) => result.push(value));
     return result;
   }
   return [];
+};
+
+const formatCards = (cards: string[], limit: number): string => {
+  const labels = cards.map((card) => toCardLabel(card));
+  if (labels.length <= limit) {
+    return labels.join(" ");
+  }
+  return `${labels.slice(0, limit).join(" ")} +${labels.length - limit}`;
+};
+
+const buildSeatLayout = (players: UiPlayer[], mySeat: number | null): SeatLayoutItem[] => {
+  if (players.length === 0) {
+    return [];
+  }
+
+  const sorted = [...players].sort((a, b) => a.seat - b.seat);
+  const step = 360 / sorted.length;
+  const baseStartDeg = -90;
+  const myIndex = mySeat === null ? -1 : sorted.findIndex((player) => player.seat === mySeat);
+  const rotation = myIndex >= 0 ? 90 - (baseStartDeg + step * myIndex) : 0;
+  const radiusX = 34;
+  const radiusY = 30;
+
+  return sorted.map((player, index) => {
+    const angle = ((baseStartDeg + step * index + rotation) * Math.PI) / 180;
+    return {
+      player,
+      left: 50 + Math.cos(angle) * radiusX,
+      top: 50 + Math.sin(angle) * radiusY
+    };
+  });
+};
+
+const actionText = (action: TableActionItem): string => {
+  if (action.kind === "pass") {
+    return `座${action.seat} 过牌`;
+  }
+  const cards = formatCards(action.cards, 3);
+  return `座${action.seat} ${action.declaredType ?? ""}:${action.declaredKey ?? ""} ${cards}`.trim();
 };
 
 export const RoomPage = (): JSX.Element => {
@@ -93,6 +154,8 @@ export const RoomPage = (): JSX.Element => {
   const [deckPulse, setDeckPulse] = useState(false);
   const [incomingCardId, setIncomingCardId] = useState<string | null>(null);
   const [incomingPulseTick, setIncomingPulseTick] = useState(0);
+  const [seatRecentPlays, setSeatRecentPlays] = useState<Record<number, SeatRecentPlay>>({});
+  const [tableActions, setTableActions] = useState<TableActionItem[]>([]);
 
   const drawPulseTimersRef = useRef<Record<number, number>>({});
   const drawBannerTimerRef = useRef<number | null>(null);
@@ -214,6 +277,8 @@ export const RoomPage = (): JSX.Element => {
           setSelectedCards([]);
           setIncomingCardId(null);
           setTablePlayView(null);
+          setSeatRecentPlays({});
+          setTableActions([]);
           appendLog(`收到发牌：${message.cards?.length ?? 0} 张`);
         });
 
@@ -255,8 +320,28 @@ export const RoomPage = (): JSX.Element => {
           });
           setTableAnimTick((tick) => tick + 1);
 
-          const cardText = cards.map((card) => toCardLabel(card)).join(" ");
-          appendLog(`座位 ${message.seat} 出牌 ${cards.length} 张（${message.declaredType}:${message.declaredKey}） ${cardText}`);
+          setSeatRecentPlays((prev) => ({
+            ...prev,
+            [message.seat]: {
+              cards,
+              declaredType: message.declaredType,
+              declaredKey: message.declaredKey,
+              tick: Date.now()
+            }
+          }));
+          setTableActions((prev) => [
+            ...prev.slice(-11),
+            {
+              id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              seat: message.seat,
+              kind: "play",
+              cards,
+              declaredType: message.declaredType,
+              declaredKey: message.declaredKey
+            }
+          ]);
+
+          appendLog(`座位 ${message.seat} 出牌 ${cards.length} 张（${message.declaredType}:${message.declaredKey}） ${formatCards(cards, 5)}`);
         });
 
         room.onMessage("player_drew", (message: PlayerDrewMessage) => {
@@ -265,21 +350,35 @@ export const RoomPage = (): JSX.Element => {
           const store = useGameStore.getState();
           const me = store.roomState?.players.find((player) => player.sessionId === store.sessionId);
           if (me?.seat !== message.seat) {
-            appendLog(`座位 ${message.seat} 摸了 1 张牌`);
+            appendLog(`座位 ${message.seat} 摸了 ${message.cardsCount} 张牌`);
           }
         });
 
         room.onMessage("passed", (message: { seat: number }) => {
+          setTableActions((prev) => [
+            ...prev.slice(-11),
+            {
+              id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              seat: message.seat,
+              kind: "pass",
+              cards: []
+            }
+          ]);
           appendLog(`座位 ${message.seat} 过牌`);
         });
 
         room.onMessage("round_reset", (message: { turnSeat: number }) => {
           setTablePlayView(null);
           setTableAnimTick((tick) => tick + 1);
+          setSeatRecentPlays({});
+          setTableActions([]);
           appendLog(`新一轮开始，座位 ${message.turnSeat} 先手`);
         });
 
         room.onMessage("settlement", (message: { winnerSeat: number }) => {
+          setTablePlayView(null);
+          setSeatRecentPlays({});
+          setTableActions([]);
           appendLog(`本局结算，赢家座位 ${message.winnerSeat}`);
         });
 
@@ -318,6 +417,15 @@ export const RoomPage = (): JSX.Element => {
   const playDisabled = !isMyTurn || selectedCards.length === 0 || (selectedHasWildcard && (!declaredType || !declaredKey));
 
   const tablePlay = tablePlayView ?? roomState?.lastPlay ?? null;
+  const players = roomState?.players ?? [];
+  const seatLayout = useMemo(() => buildSeatLayout(players, myPlayer?.seat ?? null), [players, myPlayer?.seat]);
+  const seatLatestAction = useMemo(() => {
+    const map: Record<number, TableActionItem> = {};
+    for (const action of tableActions) {
+      map[action.seat] = action;
+    }
+    return map;
+  }, [tableActions]);
 
   const toggleCard = (cardId: string): void => {
     setSelectedCards((prev) => {
@@ -344,7 +452,7 @@ export const RoomPage = (): JSX.Element => {
     if (playDisabled) {
       return;
     }
-    const payload: Record<string, any> = {
+    const payload: Record<string, unknown> = {
       actionId: generateActionId(),
       seq: Date.now(),
       cards: selectedCards
@@ -428,77 +536,132 @@ export const RoomPage = (): JSX.Element => {
             </label>
           </div>
         )}
-
-        <div className="table-stage">
-          <div className="table-stage-head">
-            <h4>桌面出牌区</h4>
-            {drawBanner && (
-              <span key={`draw-${drawBanner.tick}`} className="draw-banner">
-                座位 {drawBanner.seat} 摸了 1 张牌
-              </span>
-            )}
-          </div>
-          {!tablePlay ? (
-            <p className="muted">当前无可跟牌型</p>
-          ) : (
-            <>
-              <p className="muted">
-                座位 {tablePlay.seat} | {tablePlay.cardsCount} 张 | {tablePlay.declaredType}:{tablePlay.declaredKey}
-              </p>
-              <div className="table-cards" key={`play-${tableAnimTick}-${tablePlay.seat}-${tablePlay.cards.join("|")}`}>
-                {tablePlay.cards.map((cardId, index) => (
-                  <div
-                    key={`${tableAnimTick}-${cardId}-${index}`}
-                    className={`table-card ${cardThemeClass(cardId)} play-enter`}
-                    style={{ animationDelay: `${index * 70}ms` }}
-                  >
-                    <span className="table-card-main">{toCardLabel(cardId)}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
       </section>
 
-      <section className="panel">
-        <h3>玩家列表</h3>
-        <table className="players-table">
-          <thead>
-            <tr>
-              <th>座位</th>
-              <th>昵称</th>
-              <th>手牌</th>
-              <th>状态</th>
-              <th>分数</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(roomState?.players ?? []).map((player) => {
+      <section className="panel battle-layout">
+        <div className="arena-zone">
+          <div className="arena-board">
+            <div className="arena-table">
+              <div className="table-stage-head">
+                <h4>桌面出牌区</h4>
+                {drawBanner && (
+                  <span key={`draw-${drawBanner.tick}`} className="draw-banner">
+                    座位 {drawBanner.seat} 摸了 1 张牌
+                  </span>
+                )}
+              </div>
+
+              <div className="table-current">
+                {!tablePlay ? (
+                  <p className="muted">当前无可跟牌型</p>
+                ) : (
+                  <>
+                    <p className="muted">
+                      座位 {tablePlay.seat} | {tablePlay.cardsCount} 张 | {tablePlay.declaredType}:{tablePlay.declaredKey}
+                    </p>
+                    <div className="table-cards" key={`play-${tableAnimTick}-${tablePlay.seat}-${tablePlay.cards.join("|")}`}>
+                      {tablePlay.cards.map((cardId, index) => (
+                        <div
+                          key={`${tableAnimTick}-${cardId}-${index}`}
+                          className={`table-card ${cardThemeClass(cardId)} play-enter`}
+                          style={{ animationDelay: `${index * 70}ms` }}
+                        >
+                          <span className="table-card-main">{toCardLabel(cardId)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="table-history">
+                <span className="table-history-title">本轮出牌轨迹</span>
+                <div className="table-history-list">
+                  {tableActions.length === 0 ? (
+                    <span className="trail-empty">暂无动作</span>
+                  ) : (
+                    tableActions.map((action) => (
+                      <span key={action.id} className={`trail-item ${action.kind}`}>
+                        {actionText(action)}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {seatLayout.map((seat) => {
+              const player = seat.player;
               const isMe = player.sessionId === myPlayer?.sessionId;
               const isTurnSeat = player.seat === roomState?.turnSeat;
               const isDrawPulse = Boolean(drawPulseSeats[player.seat]);
-              const rowClass = [isMe ? "me" : "", isDrawPulse ? "draw-pulse" : ""].filter(Boolean).join(" ");
+              const recent = seatRecentPlays[player.seat];
+              const seatClasses = [
+                "arena-seat",
+                isMe ? "me" : "",
+                isTurnSeat ? "turn" : "",
+                isDrawPulse ? "drew" : ""
+              ]
+                .filter(Boolean)
+                .join(" ");
 
               return (
-                <tr key={player.sessionId} className={rowClass}>
-                  <td>{player.seat}</td>
-                  <td>
-                    {player.nickname}
+                <div
+                  key={player.sessionId}
+                  className={seatClasses}
+                  style={{
+                    left: `${seat.left}%`,
+                    top: `${seat.top}%`
+                  }}
+                >
+                  <div className="arena-seat-head">
+                    <strong>{player.nickname}</strong>
+                    <span>#{player.seat}</span>
+                  </div>
+                  <div className="arena-seat-meta">
+                    <span>{player.handCount} 张</span>
+                    <span>{player.connected ? "在线" : "离线"}</span>
+                  </div>
+                  <div className={`arena-seat-last ${recent ? "" : "empty"}`}>
+                    {recent ? formatCards(recent.cards, 2) : "未出牌"}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <aside className="players-sidebar">
+          <h3>玩家列表</h3>
+          <div className="player-side-list">
+            {players.map((player) => {
+              const isMe = player.sessionId === myPlayer?.sessionId;
+              const isTurnSeat = player.seat === roomState?.turnSeat;
+              const isDrawPulse = Boolean(drawPulseSeats[player.seat]);
+              const latest = seatLatestAction[player.seat];
+              const rowClass = ["player-side-item", isMe ? "me" : "", isDrawPulse ? "draw-pulse" : ""].filter(Boolean).join(" ");
+
+              return (
+                <div key={player.sessionId} className={rowClass}>
+                  <div className="player-side-head">
+                    <span className="seat-index">座位 {player.seat}</span>
+                    <strong>{player.nickname}</strong>
                     {isMe && <span className="seat-tag">我</span>}
                     {isTurnSeat && <span className="seat-tag turn">出牌中</span>}
                     {isDrawPulse && <span className="seat-tag drew">摸牌</span>}
-                  </td>
-                  <td>{player.handCount}</td>
-                  <td>
-                    {player.ready ? "ready" : "idle"} / {player.connected ? "online" : "offline"}
-                  </td>
-                  <td>{player.score}</td>
-                </tr>
+                  </div>
+                  <div className="player-side-meta">
+                    <span>手牌 {player.handCount}</span>
+                    <span>分数 {player.score}</span>
+                    <span>{player.ready ? "ready" : "idle"}</span>
+                    <span>{player.connected ? "online" : "offline"}</span>
+                  </div>
+                  <div className="player-side-action">{latest ? actionText(latest) : "本轮未行动"}</div>
+                </div>
               );
             })}
-          </tbody>
-        </table>
+          </div>
+        </aside>
       </section>
 
       <section className="panel">
