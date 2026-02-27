@@ -409,6 +409,12 @@
    4. 新增“出光手牌获胜”UI提示（`frontend/src/pages/RoomPage.tsx` + `frontend/src/styles.css`）：
       1. 结算时在桌面中央显示赢家提示条（含座位与昵称）
       2. 赢家座位卡短时高亮，减少玩家对胜者身份的歧义
+33. PC端手牌快捷按钮位置微调（2026-02-27）：
+   1. 调整 `frontend/src/styles.css` 中 `.hand-shortcuts`：
+      1. 从 `justify-content: space-between` 改为 `justify-content: flex-start`
+      2. 让“过牌/出牌”按钮靠左，贴近“手牌快捷操作”文案区域（位于“我的手牌”上方）
+   2. 移动端保持不变：
+      1. `<=640px` 断点下显式保留原有纵向/网格布局，仅重置 `margin-left`
 
 ## 10. 当前未完成项（必须继续）
 
