@@ -439,6 +439,14 @@
    3. 玩家框重叠可视化优化（`frontend/src/styles.css`）：
       1. `arena-seat` 改为半透明磨砂背景，并适度提高层级
       2. turn/ready 等状态保持高亮，但不再完全盖住下层内容
+37. 移动端玩家头像框二次缩小（2026-02-27）：
+   1. `computeArenaMetrics` 再次下调窄屏座位尺寸参数（`frontend/src/pages/RoomPage.tsx`）：
+      1. `seatWidthFactor: 0.155 -> 0.145`
+      2. `seatWidthCompactDelta: 0.03 -> 0.032`
+      3. 窄屏最小宽度 `56 -> 52`
+   2. 移动端样式缩放再收紧（`frontend/src/styles.css`）：
+      1. `--arena-seat-scale` 乘数从 `0.9` 下调到 `0.82`
+   3. 结果：移动端玩家框整体更小，遮挡概率进一步降低
 
 ## 10. 当前未完成项（必须继续）
 

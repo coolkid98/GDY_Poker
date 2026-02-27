@@ -1715,7 +1715,7 @@ button:disabled {
   .arena-board {
     min-height: 0;
     border-radius: 14px;
-    --arena-seat-scale: calc(var(--arena-seat-scale, 1) * 0.9);
+    --arena-seat-scale: calc(var(--arena-seat-scale, 1) * 0.82);
     --arena-card-scale: calc(var(--arena-card-scale, 1) * 0.8);
     --arena-trail-scale: calc(var(--arena-trail-scale, 1) * 0.9);
   }

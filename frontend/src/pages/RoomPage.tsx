@@ -179,9 +179,9 @@ const computeArenaMetrics = (boardSize: ArenaBoardSize, playerCount: number): Ar
   const compactByHeight = clampNumber((660 - height) / 260, 0, 1);
   const compact = Math.max(compactByWidth, compactByHeight);
 
-  const seatWidthFactor = isNarrowScreen ? 0.155 : 0.18;
-  const seatWidthCompactDelta = isNarrowScreen ? 0.03 : 0.025;
-  const seatWidth = clampNumber(width * (seatWidthFactor - compact * seatWidthCompactDelta), isNarrowScreen ? 56 : 64, 150);
+  const seatWidthFactor = isNarrowScreen ? 0.145 : 0.18;
+  const seatWidthCompactDelta = isNarrowScreen ? 0.032 : 0.025;
+  const seatWidth = clampNumber(width * (seatWidthFactor - compact * seatWidthCompactDelta), isNarrowScreen ? 52 : 64, 150);
   const seatScale = clampNumber(seatWidth / 150, 0.42, 1);
   const cardScale = clampNumber(1 - compact * 0.34 - (isNarrowScreen ? 0.08 : 0), 0.54, 1);
   const trailScale = clampNumber(1 - compact * 0.36, 0.56, 1);
