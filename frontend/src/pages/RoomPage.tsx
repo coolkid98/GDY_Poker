@@ -65,6 +65,25 @@ interface SeatLayoutItem {
   top: number;
 }
 
+interface ArenaBoardSize {
+  width: number;
+  height: number;
+}
+
+interface ArenaLayoutMetrics extends ArenaBoardSize {
+  seatWidth: number;
+  seatScale: number;
+  cardScale: number;
+  trailScale: number;
+  radiusX: number;
+  radiusY: number;
+  tableWidthPercent: number;
+  tableHeightPercent: number;
+  tableTopPercent: number;
+  tablePadX: number;
+  tablePadY: number;
+}
+
 interface UiEventLog {
   id: string;
   text: string;
@@ -128,59 +147,120 @@ const formatCards = (cards: string[], limit: number): string => {
   return `${labels.slice(0, limit).join(" ")} +${labels.length - limit}`;
 };
 
-const getViewportProfile = (): "mobile" | "tablet" | "desktop" => {
-  if (typeof window === "undefined") {
-    return "desktop";
-  }
-  if (window.innerWidth <= 640) {
-    return "mobile";
-  }
-  if (window.innerWidth <= 880) {
-    return "tablet";
-  }
-  return "desktop";
+const clampNumber = (value: number, min: number, max: number): number => {
+  return Math.max(min, Math.min(max, value));
 };
 
-const buildSeatLayout = (players: UiPlayer[], mySeat: number | null): SeatLayoutItem[] => {
+const computeArenaMetrics = (boardSize: ArenaBoardSize, playerCount: number): ArenaLayoutMetrics => {
+  const width = Math.max(boardSize.width, 320);
+  const height = Math.max(boardSize.height, 280);
+
+  const compactByWidth = clampNumber((620 - width) / 260, 0, 1);
+  const compactByHeight = clampNumber((660 - height) / 260, 0, 1);
+  const compact = Math.max(compactByWidth, compactByHeight);
+
+  const seatWidth = clampNumber(width * (0.18 - compact * 0.025), 64, 150);
+  const seatScale = clampNumber(seatWidth / 150, 0.42, 1);
+  const cardScale = clampNumber(1 - compact * 0.34, 0.58, 1);
+  const trailScale = clampNumber(1 - compact * 0.36, 0.56, 1);
+
+  const tableWidthPercent = clampNumber(72 + compact * 10, 72, 84);
+  const tableHeightPercent = clampNumber(62 - compact * 12, 46, 62);
+  const tableTopPercent = clampNumber(50 + compact * 4, 50, 54);
+  const tablePadX = clampNumber(30 - compact * 18, 10, 30);
+  const tablePadY = clampNumber(18 - compact * 10, 6, 18);
+
+  const seatHeight = seatWidth * 1.02;
+  const maxRadiusX = Math.max(width / 2 - (seatWidth / 2 + 10), 10);
+  const maxRadiusY = Math.max(height / 2 - (seatHeight / 2 + 10), 10);
+
+  let baseRadiusXRatio = 0;
+  let baseRadiusYRatio = 0.7;
+  if (playerCount <= 2) {
+    baseRadiusXRatio = 0;
+    baseRadiusYRatio = 0.82;
+  } else if (playerCount === 3) {
+    baseRadiusXRatio = 0.9;
+    baseRadiusYRatio = 0.92;
+  } else if (playerCount === 4) {
+    baseRadiusXRatio = 0.86;
+    baseRadiusYRatio = 0.84;
+  } else if (playerCount <= 4) {
+    baseRadiusXRatio = 0.84;
+    baseRadiusYRatio = 0.78;
+  } else if (playerCount <= 6) {
+    baseRadiusXRatio = 0.9;
+    baseRadiusYRatio = 0.86;
+  } else {
+    baseRadiusXRatio = 0.92;
+    baseRadiusYRatio = 0.88;
+  }
+
+  const radiusX = playerCount <= 2 ? 0 : maxRadiusX * Math.max(0.68, baseRadiusXRatio - compact * 0.05);
+  const radiusY = maxRadiusY * Math.max(0.64, baseRadiusYRatio - compact * 0.06);
+
+  return {
+    width,
+    height,
+    seatWidth,
+    seatScale,
+    cardScale,
+    trailScale,
+    radiusX,
+    radiusY,
+    tableWidthPercent,
+    tableHeightPercent,
+    tableTopPercent,
+    tablePadX,
+    tablePadY
+  };
+};
+
+const getPresetSeatAngles = (count: number): number[] | null => {
+  if (count === 1) {
+    return [90];
+  }
+  if (count === 2) {
+    return [90, 270];
+  }
+  if (count === 3) {
+    return [90, 300, 240];
+  }
+  if (count === 4) {
+    return [90, 20, 290, 160];
+  }
+  return null;
+};
+
+const buildSeatLayout = (players: UiPlayer[], mySeat: number | null, metrics: ArenaLayoutMetrics): SeatLayoutItem[] => {
   if (players.length === 0) {
     return [];
   }
 
   const sorted = [...players].sort((a, b) => a.seat - b.seat);
+  const myIndex = mySeat === null ? -1 : sorted.findIndex((player) => player.seat === mySeat);
   const step = 360 / sorted.length;
   const baseStartDeg = -90;
-  const myIndex = mySeat === null ? -1 : sorted.findIndex((player) => player.seat === mySeat);
   const rotation = myIndex >= 0 ? 90 - (baseStartDeg + step * myIndex) : 0;
-
-  const viewport = getViewportProfile();
-  let radiusX = 34;
-  let radiusY = 30;
-  if (viewport === "tablet") {
-    radiusX = 36;
-    radiusY = 33;
-  }
-  if (viewport === "mobile") {
-    if (sorted.length <= 2) {
-      radiusX = 0;
-      radiusY = 34;
-    } else if (sorted.length <= 4) {
-      radiusX = 30;
-      radiusY = 35;
-    } else if (sorted.length <= 6) {
-      radiusX = 35;
-      radiusY = 36;
-    } else {
-      radiusX = 38;
-      radiusY = 38;
-    }
-  }
+  const presetAngles = myIndex >= 0 ? getPresetSeatAngles(sorted.length) : null;
 
   return sorted.map((player, index) => {
-    const angle = ((baseStartDeg + step * index + rotation) * Math.PI) / 180;
+    let angleDeg = baseStartDeg + step * index + rotation;
+    if (presetAngles && presetAngles.length === sorted.length) {
+      const relativeIndex = (index - myIndex + sorted.length) % sorted.length;
+      angleDeg = presetAngles[relativeIndex] ?? angleDeg;
+    }
+
+    const angle = (angleDeg * Math.PI) / 180;
+    const leftPx = metrics.width / 2 + Math.cos(angle) * metrics.radiusX;
+    const topPx = metrics.height / 2 + Math.sin(angle) * metrics.radiusY;
+    const leftPercent = clampNumber((leftPx / metrics.width) * 100, 4, 96);
+    const topPercent = clampNumber((topPx / metrics.height) * 100, 4, 96);
+
     return {
       player,
-      left: 50 + Math.cos(angle) * radiusX,
-      top: 50 + Math.sin(angle) * radiusY
+      left: leftPercent,
+      top: topPercent
     };
   });
 };
@@ -215,6 +295,12 @@ export const RoomPage = (): JSX.Element => {
   const [playedVisualCards, setPlayedVisualCards] = useState<PlayedVisualCard[]>([]);
   const [drawFlights, setDrawFlights] = useState<DrawFlightItem[]>([]);
 
+  const arenaBoardRef = useRef<HTMLDivElement | null>(null);
+  const [arenaBoardSize, setArenaBoardSize] = useState<ArenaBoardSize>({
+    width: 960,
+    height: 640
+  });
+
   const drawPulseTimersRef = useRef<Record<number, number>>({});
   const drawBannerTimerRef = useRef<number | null>(null);
   const deckPulseTimerRef = useRef<number | null>(null);
@@ -247,6 +333,53 @@ export const RoomPage = (): JSX.Element => {
     },
     [appendLog]
   );
+
+  useEffect(() => {
+    const boardEl = arenaBoardRef.current;
+    if (!boardEl) {
+      return;
+    }
+
+    const commitSize = (width: number, height: number): void => {
+      const nextWidth = Math.max(1, Math.round(width));
+      const nextHeight = Math.max(1, Math.round(height));
+      setArenaBoardSize((prev) => {
+        if (prev.width === nextWidth && prev.height === nextHeight) {
+          return prev;
+        }
+        return {
+          width: nextWidth,
+          height: nextHeight
+        };
+      });
+    };
+
+    const syncFromRect = (rect: Pick<DOMRectReadOnly, "width" | "height">): void => {
+      commitSize(rect.width, rect.height);
+    };
+
+    syncFromRect(boardEl.getBoundingClientRect());
+
+    if (typeof ResizeObserver === "function") {
+      const observer = new ResizeObserver((entries) => {
+        const first = entries[0];
+        if (first) {
+          syncFromRect(first.contentRect);
+        }
+      });
+      observer.observe(boardEl);
+      return () => observer.disconnect();
+    }
+
+    const onResize = (): void => {
+      syncFromRect(boardEl.getBoundingClientRect());
+    };
+
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -572,7 +705,26 @@ export const RoomPage = (): JSX.Element => {
 
   const tablePlay = tablePlayView ?? roomState?.lastPlay ?? null;
   const players = roomState?.players ?? [];
-  const seatLayout = useMemo(() => buildSeatLayout(players, myPlayer?.seat ?? null), [players, myPlayer?.seat]);
+  const arenaLayout = useMemo(() => computeArenaMetrics(arenaBoardSize, players.length), [arenaBoardSize, players.length]);
+  const seatLayout = useMemo(
+    () => buildSeatLayout(players, myPlayer?.seat ?? null, arenaLayout),
+    [players, myPlayer?.seat, arenaLayout]
+  );
+  const arenaBoardStyle = useMemo(
+    () =>
+      ({
+        "--arena-seat-scale": arenaLayout.seatScale.toFixed(4),
+        "--arena-card-scale": arenaLayout.cardScale.toFixed(4),
+        "--arena-trail-scale": arenaLayout.trailScale.toFixed(4),
+        "--arena-seat-width": `${Math.round(arenaLayout.seatWidth)}px`,
+        "--arena-table-width": `${arenaLayout.tableWidthPercent.toFixed(2)}%`,
+        "--arena-table-height": `${arenaLayout.tableHeightPercent.toFixed(2)}%`,
+        "--arena-table-top": `${arenaLayout.tableTopPercent.toFixed(2)}%`,
+        "--arena-table-pad-x": `${Math.round(arenaLayout.tablePadX)}px`,
+        "--arena-table-pad-y": `${Math.round(arenaLayout.tablePadY)}px`
+      }) as CSSProperties,
+    [arenaLayout]
+  );
   const seatPositionMap = useMemo(() => {
     const map: Record<number, { left: number; top: number }> = {};
     for (const seat of seatLayout) {
@@ -749,7 +901,7 @@ export const RoomPage = (): JSX.Element => {
 
       <section className="panel battle-layout room-battle">
         <div className="arena-zone">
-          <div className="arena-board">
+          <div className="arena-board" ref={arenaBoardRef} style={arenaBoardStyle}>
             <div className="arena-table">
               <div className="table-stage-head">
                 <h4>桌面出牌区</h4>

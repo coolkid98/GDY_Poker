@@ -252,6 +252,15 @@ button:disabled {
 }
 
 .arena-board {
+  --arena-seat-scale: 1;
+  --arena-card-scale: 1;
+  --arena-trail-scale: 1;
+  --arena-seat-width: 150px;
+  --arena-table-width: min(72%, 760px);
+  --arena-table-height: 62%;
+  --arena-table-top: 50%;
+  --arena-table-pad-x: 30px;
+  --arena-table-pad-y: 18px;
   min-height: 640px;
   position: relative;
   border: 1px solid #b9c9bc;
@@ -275,9 +284,9 @@ button:disabled {
 .arena-table {
   position: absolute;
   left: 50%;
-  top: 50%;
-  width: min(72%, 760px);
-  height: 62%;
+  top: var(--arena-table-top, 50%);
+  width: var(--arena-table-width, min(72%, 760px));
+  height: var(--arena-table-height, 62%);
   transform: translate(-50%, -50%);
   border-radius: 50%;
   border: 2px solid #c6b281;
@@ -286,7 +295,8 @@ button:disabled {
     inset 0 0 0 3px #efe0b7bb,
     0 20px 50px #00000055;
   z-index: 1;
-  padding: 18px 30px 22px;
+  padding: var(--arena-table-pad-y, 18px) var(--arena-table-pad-x, 30px)
+    calc(var(--arena-table-pad-y, 18px) + 4px);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -302,7 +312,7 @@ button:disabled {
 
 .table-stage-head h4 {
   color: #f4efe1;
-  font-size: 24px;
+  font-size: calc(24px * var(--arena-seat-scale, 1));
   text-shadow: 0 2px 5px #00000055;
 }
 
@@ -310,9 +320,9 @@ button:disabled {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  height: 28px;
-  padding: 0 12px;
-  font-size: 13px;
+  height: calc(28px * var(--arena-seat-scale, 1));
+  padding: 0 calc(12px * var(--arena-seat-scale, 1));
+  font-size: calc(13px * var(--arena-seat-scale, 1));
   font-weight: 600;
   color: #214d7c;
   background: #e0f0ff;
@@ -373,11 +383,11 @@ button:disabled {
 }
 
 .table-current {
-  min-height: 104px;
+  min-height: calc(104px * var(--arena-card-scale, 1));
   border: 1px dashed #d7caab;
   border-radius: 14px;
   background: #ffffff0f;
-  padding: 10px;
+  padding: calc(10px * var(--arena-card-scale, 1));
   backdrop-filter: blur(1px);
 }
 
@@ -386,27 +396,28 @@ button:disabled {
 }
 
 .table-cards {
-  min-height: 76px;
+  min-height: calc(76px * var(--arena-card-scale, 1));
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: calc(10px * var(--arena-card-scale, 1));
   align-items: center;
+  justify-content: center;
 }
 
 .table-card {
-  min-width: 92px;
-  min-height: 64px;
+  min-width: calc(92px * var(--arena-card-scale, 1));
+  min-height: calc(64px * var(--arena-card-scale, 1));
   border: 2px solid #30424f;
-  border-radius: 12px;
+  border-radius: calc(12px * var(--arena-card-scale, 1));
   background: linear-gradient(180deg, #ffffff 0%, #f3f6fa 100%);
   box-shadow: 0 9px 18px #0000001f;
   display: grid;
   place-items: center;
-  padding: 4px 8px;
+  padding: calc(4px * var(--arena-card-scale, 1)) calc(8px * var(--arena-card-scale, 1));
 }
 
 .table-card-main {
-  font-size: 30px;
+  font-size: calc(30px * var(--arena-card-scale, 1));
   font-weight: 700;
 }
 
@@ -431,16 +442,16 @@ button:disabled {
 }
 
 .table-history-title {
-  font-size: 13px;
+  font-size: calc(13px * var(--arena-trail-scale, 1));
   color: #d7e7de;
   font-weight: 600;
 }
 
 .table-history-list {
-  min-height: 34px;
+  min-height: calc(34px * var(--arena-trail-scale, 1));
   display: flex;
   flex-wrap: nowrap;
-  gap: 8px;
+  gap: calc(8px * var(--arena-trail-scale, 1));
   overflow-x: auto;
   padding-bottom: 2px;
 }
@@ -448,14 +459,14 @@ button:disabled {
 .trail-item {
   display: inline-flex;
   align-items: center;
-  height: 28px;
+  height: calc(28px * var(--arena-trail-scale, 1));
   white-space: nowrap;
   border-radius: 999px;
-  padding: 0 10px;
+  padding: 0 calc(10px * var(--arena-trail-scale, 1));
   border: 1px solid #a0d4be;
   background: #e8fff457;
   color: #f4f6f5;
-  font-size: 12px;
+  font-size: calc(12px * var(--arena-trail-scale, 1));
   font-weight: 600;
 }
 
@@ -467,17 +478,17 @@ button:disabled {
 
 .trail-empty {
   color: #d5e6dd;
-  font-size: 13px;
+  font-size: calc(13px * var(--arena-trail-scale, 1));
 }
 
 .arena-seat {
   position: absolute;
-  width: 150px;
+  width: var(--arena-seat-width, 150px);
   transform: translate(-50%, -50%);
-  border-radius: 12px;
+  border-radius: calc(12px * var(--arena-seat-scale, 1));
   border: 1px solid #a7d2c4;
   background: linear-gradient(180deg, #f5f9f8 0%, #e2ece8 100%);
-  padding: 8px;
+  padding: calc(8px * var(--arena-seat-scale, 1));
   box-shadow: 0 8px 18px #0000002f;
   z-index: 2;
   transition: transform 140ms ease, border-color 140ms ease;
@@ -522,12 +533,12 @@ button:disabled {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 8px;
-  font-size: 13px;
+  gap: calc(8px * var(--arena-seat-scale, 1));
+  font-size: calc(13px * var(--arena-seat-scale, 1));
 }
 
 .arena-seat-head strong {
-  font-size: 14px;
+  font-size: calc(14px * var(--arena-seat-scale, 1));
 }
 
 .arena-seat.turn .arena-seat-head strong {
@@ -535,13 +546,13 @@ button:disabled {
 }
 
 .arena-seat-head span {
-  font-size: 12px;
+  font-size: calc(12px * var(--arena-seat-scale, 1));
   color: #61717e;
 }
 
 .arena-seat-hand {
-  margin-top: 6px;
-  min-height: 24px;
+  margin-top: calc(6px * var(--arena-seat-scale, 1));
+  min-height: calc(24px * var(--arena-seat-scale, 1));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -554,15 +565,15 @@ button:disabled {
 }
 
 .arena-seat-hand-card {
-  width: 16px;
-  height: 22px;
-  border-radius: 4px;
+  width: calc(16px * var(--arena-seat-scale, 1));
+  height: calc(22px * var(--arena-seat-scale, 1));
+  border-radius: calc(4px * var(--arena-seat-scale, 1));
   border: 1px solid #2a4251;
   background:
     radial-gradient(circle at 65% 20%, #ffffff66 0%, transparent 42%),
     repeating-linear-gradient(-45deg, #2e4c60 0 5px, #3b5f76 5px 10px);
   box-shadow: 0 2px 4px #00000033;
-  margin-left: -8px;
+  margin-left: calc(-8px * var(--arena-seat-scale, 1));
 }
 
 .arena-seat-hand-card:first-child {
@@ -570,34 +581,34 @@ button:disabled {
 }
 
 .arena-seat-hand-more {
-  margin-left: 5px;
-  font-size: 10px;
+  margin-left: calc(5px * var(--arena-seat-scale, 1));
+  font-size: calc(10px * var(--arena-seat-scale, 1));
   font-weight: 700;
   color: #2a3f4e;
 }
 
 .arena-seat-meta {
-  margin-top: 4px;
+  margin-top: calc(4px * var(--arena-seat-scale, 1));
   display: flex;
   justify-content: flex-start;
-  gap: 10px;
-  font-size: 12px;
+  gap: calc(10px * var(--arena-seat-scale, 1));
+  font-size: calc(12px * var(--arena-seat-scale, 1));
   color: #4d616d;
 }
 
 .arena-seat-last {
-  margin-top: 6px;
-  min-height: 24px;
-  border-radius: 8px;
+  margin-top: calc(6px * var(--arena-seat-scale, 1));
+  min-height: calc(24px * var(--arena-seat-scale, 1));
+  border-radius: calc(8px * var(--arena-seat-scale, 1));
   border: 1px solid #b4c7d0;
   background: #f7fbff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: calc(12px * var(--arena-seat-scale, 1));
   font-weight: 600;
   color: #314754;
-  padding: 0 6px;
+  padding: 0 calc(6px * var(--arena-seat-scale, 1));
 }
 
 .arena-seat-last.turn {
@@ -613,13 +624,13 @@ button:disabled {
 }
 
 .arena-seat-turn-tip {
-  margin-top: 4px;
+  margin-top: calc(4px * var(--arena-seat-scale, 1));
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  height: 18px;
-  padding: 0 7px;
-  font-size: 10px;
+  height: calc(18px * var(--arena-seat-scale, 1));
+  padding: 0 calc(7px * var(--arena-seat-scale, 1));
+  font-size: calc(10px * var(--arena-seat-scale, 1));
   font-weight: 700;
   letter-spacing: 0.2px;
   color: #734100;
@@ -635,6 +646,7 @@ button:disabled {
   display: grid;
   gap: 12px;
   align-content: start;
+  container-type: inline-size;
 }
 
 .players-sidebar h3 {
@@ -755,6 +767,85 @@ button:disabled {
   color: #486575;
   font-weight: 700;
   white-space: nowrap;
+}
+
+@container (max-width: 220px) {
+  .players-sidebar {
+    padding: 7px;
+    gap: 7px;
+  }
+
+  .players-sidebar h3 {
+    font-size: 16px;
+  }
+
+  .player-side-list {
+    gap: 7px;
+  }
+
+  .player-side-item {
+    padding: 6px;
+    gap: 4px;
+  }
+
+  .player-side-head {
+    gap: 4px;
+  }
+
+  .player-side-head strong {
+    font-size: 12px;
+  }
+
+  .seat-index {
+    font-size: 10px;
+  }
+
+  .players-sidebar .seat-tag {
+    margin-left: 3px;
+    font-size: 9px;
+    padding: 1px 5px;
+  }
+
+  .player-side-meta {
+    font-size: 10px;
+    gap: 4px;
+  }
+
+  .ready-badge {
+    height: 18px;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+}
+
+@container (max-width: 160px) {
+  .players-sidebar h3 {
+    font-size: 14px;
+  }
+
+  .player-side-item {
+    padding: 5px;
+    gap: 3px;
+    border-radius: 10px;
+  }
+
+  .player-side-head strong {
+    font-size: 10px;
+  }
+
+  .seat-index {
+    font-size: 9px;
+  }
+
+  .players-sidebar .seat-tag {
+    font-size: 8px;
+    padding: 1px 4px;
+  }
+
+  .player-side-meta {
+    font-size: 9px;
+    gap: 3px;
+  }
 }
 
 .seat-tag {
@@ -1230,8 +1321,8 @@ button:disabled {
   }
 
   .battle-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(108px, 31vw);
-    gap: 6px;
+    grid-template-columns: minmax(0, 1fr) minmax(84px, 22vw);
+    gap: 4px;
   }
 
   .room-battle {
@@ -1339,88 +1430,31 @@ button:disabled {
   .arena-board {
     min-height: 0;
     border-radius: 14px;
-  }
-
-  .arena-table {
-    width: 91%;
-    height: 54%;
-    top: 53%;
-    padding: 6px 8px 8px;
-  }
-
-  .table-stage-head h4 {
-    font-size: 14px;
-  }
-
-  .draw-banner {
-    height: 20px;
-    padding: 0 7px;
-    font-size: 9px;
+    --arena-seat-scale: calc(var(--arena-seat-scale, 1) * 0.9);
+    --arena-card-scale: calc(var(--arena-card-scale, 1) * 0.8);
+    --arena-trail-scale: calc(var(--arena-trail-scale, 1) * 0.9);
   }
 
   .table-current {
-    min-height: 60px;
-    padding: 6px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
-  .table-cards {
-    gap: 5px;
+  .table-current .muted {
+    position: absolute;
+    top: calc(6px * var(--arena-card-scale, 1));
+    left: calc(8px * var(--arena-card-scale, 1));
+    right: calc(8px * var(--arena-card-scale, 1));
+    margin: 0;
+    text-align: center;
+    line-height: 1.2;
   }
 
-  .table-card {
-    min-width: 48px;
-    min-height: 36px;
-    border-width: 1px;
-    border-radius: 7px;
-    padding: 3px 5px;
-  }
-
-  .table-card-main {
-    font-size: 17px;
-  }
-
-  .table-history-title {
-    font-size: 10px;
-  }
-
-  .table-history-list {
-    min-height: 20px;
-    gap: 4px;
-  }
-
-  .trail-item {
-    height: 20px;
-    padding: 0 6px;
-    font-size: 9px;
-  }
-
-  .arena-seat {
-    width: 78px;
-    padding: 3px;
-  }
-
-  .arena-seat-hand-card {
-    width: 8px;
-    height: 12px;
-    margin-left: -4px;
-  }
-
-  .arena-seat-hand-more {
-    margin-left: 3px;
-    font-size: 8px;
-  }
-
-  .arena-seat-head strong {
-    font-size: 10px;
-  }
-
-  .arena-seat-head span {
-    font-size: 9px;
-  }
-
-  .arena-seat-meta {
-    gap: 4px;
-    font-size: 9px;
+  .table-current .table-cards {
+    min-height: 0;
+    margin-top: calc(14px * var(--arena-card-scale, 1));
   }
 
   .arena-seat-meta span:first-child {
@@ -1429,16 +1463,6 @@ button:disabled {
 
   .arena-seat-meta span:last-child {
     display: none;
-  }
-
-  .arena-seat-meta,
-  .arena-seat-last {
-    font-size: 9px;
-  }
-
-  .arena-seat-last {
-    min-height: 16px;
-    padding: 0 4px;
   }
 
   .arena-seat-turn-tip {
@@ -1451,35 +1475,7 @@ button:disabled {
   }
 
   .players-sidebar h3 {
-    font-size: 14px;
-  }
-
-  .player-side-item {
-    padding: 5px;
-    gap: 3px;
-  }
-
-  .player-side-head strong {
-    font-size: 11px;
-  }
-
-  .player-side-head {
-    gap: 3px;
-  }
-
-  .seat-index {
-    font-size: 10px;
-  }
-
-  .seat-tag {
-    margin-left: 2px;
-    font-size: 9px;
-    padding: 1px 5px;
-  }
-
-  .player-side-meta {
-    font-size: 9px;
-    gap: 3px;
+    margin-bottom: 0;
   }
 
   .player-side-action {
@@ -1641,46 +1637,8 @@ button:disabled {
   }
 
   .battle-layout {
-    grid-template-columns: minmax(0, 1fr) 102px;
-    gap: 5px;
-  }
-
-  .arena-seat {
-    width: 72px;
-  }
-
-  .arena-seat-head strong {
-    font-size: 9px;
-  }
-
-  .arena-seat-last {
-    min-height: 15px;
-    font-size: 8px;
-  }
-
-  .players-sidebar h3 {
-    font-size: 13px;
-  }
-
-  .player-side-head strong {
-    font-size: 10px;
-  }
-
-  .player-side-meta {
-    font-size: 8px;
-  }
-
-  .table-current {
-    min-height: 56px;
-  }
-
-  .table-card {
-    min-width: 44px;
-    min-height: 34px;
-  }
-
-  .table-card-main {
-    font-size: 16px;
+    grid-template-columns: minmax(0, 1fr) 78px;
+    gap: 3px;
   }
 
   .room-hand .card-btn {

@@ -340,6 +340,47 @@
       3. 保持“桌面区 + 玩家列表并排”不变，仅做密度和尺寸优化
    3. 座位分布同步优化（`frontend/src/pages/RoomPage.tsx`）：
       1. 移动端环形座位半径收敛，避免顶部/底部座位卡过度贴边或遮挡
+27. 桌面区改为容器驱动自适应布局（2026-02-26）：
+   1. 问题背景：
+      1. 仅靠断点和手动固定尺寸，部分手机尺寸下会出现座位框与桌面牌区错位/遮挡
+   2. 实现（`frontend/src/pages/RoomPage.tsx`）：
+      1. 给 `arena-board` 接入 `ResizeObserver`，实时读取容器宽高
+      2. 新增 `computeArenaMetrics`：根据容器尺寸与玩家数量计算
+         1. 座位卡宽度与缩放系数
+         2. 椭圆桌宽高与垂直位置
+         3. 座位环形半径（X/Y）
+      3. `buildSeatLayout` 改为使用容器计算结果，不再依赖固定 viewport 分档半径
+   3. 实现（`frontend/src/styles.css`）：
+      1. `arena-table / table-card / trail / arena-seat` 尺寸改为读取 CSS 变量（由 JS 注入）
+      2. 移除移动端对这些核心尺寸的硬编码覆盖，避免与动态计算相互冲突
+      3. `players-sidebar` 增加 `container-type: inline-size`，并通过 container query 自动缩放玩家列表组件
+28. 移动端桌面区占比与出牌居中优化（2026-02-26）：
+   1. 桌面区横向占比提升：
+      1. `<=640px` 下 `battle-layout` 右侧玩家列表列宽由 `minmax(108px, 31vw)` 调整为 `minmax(84px, 22vw)`
+      2. `<=430px` 下进一步压缩为 `78px`
+      3. 目的：把更多可视宽度让给左侧桌面出牌区
+   2. 出牌动画居中：
+      1. `table-cards` 增加 `justify-content: center`
+      2. 移动端将桌面当前牌型文案居中（`.table-current .muted`）
+      3. 目的：玩家打出的牌在视觉上稳定出现在桌面中心区域
+29. 移动端虚线框内纵向居中与牌面缩放（2026-02-26）：
+   1. 问题：
+      1. 桌面出牌在纵向上偏下，不在虚线框中心
+      2. 出牌牌面在手机端偏大
+   2. 修复（`frontend/src/styles.css`）：
+      1. `table-current` 改为 `position: relative + flex`，居中承载出牌
+      2. 当前牌型文案 `table-current .muted` 改为绝对定位到虚线框顶部，不再挤占居中区域
+      3. `table-current .table-cards` 增加顶部偏移，让牌组在虚线框中轴附近稳定居中
+      4. 移动端 `--arena-card-scale` 从 `0.9` 下调为 `0.8`，整体缩小出牌牌面
+30. 移动端座位框外扩防遮挡（2026-02-26）：
+   1. 问题：
+      1. 3人/4人局在手机端时，桌面座位框容易聚集在中部，遮挡虚线牌桌核心区域
+   2. 修复（`frontend/src/pages/RoomPage.tsx`）：
+      1. `computeArenaMetrics` 中上调移动端半径系数，减小 compact 造成的半径收缩
+      2. 新增 `getPresetSeatAngles`：
+         1. 3人局使用 `[90, 300, 240]`
+         2. 4人局使用 `[90, 20, 290, 160]`
+      3. `buildSeatLayout` 优先使用人数模板角度，确保头像框沿外缘分布，减少中区重叠
 
 ## 10. 当前未完成项（必须继续）
 
