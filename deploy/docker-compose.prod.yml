@@ -1,0 +1,42 @@
+services:
+  backend:
+    build:
+      context: ../backend
+    container_name: gdy-backend
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: 2567
+      ROOM_MAX_PLAYERS: ${ROOM_MAX_PLAYERS:-10}
+      REDIS_URL: ${REDIS_URL:-}
+    expose:
+      - "2567"
+
+  frontend:
+    build:
+      context: ../frontend
+      args:
+        VITE_COLYSEUS_ENDPOINT: ${VITE_COLYSEUS_ENDPOINT}
+    container_name: gdy-frontend
+    restart: unless-stopped
+    expose:
+      - "80"
+
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: gdy-caddy
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

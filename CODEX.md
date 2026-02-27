@@ -447,6 +447,14 @@
    2. 移动端样式缩放再收紧（`frontend/src/styles.css`）：
       1. `--arena-seat-scale` 乘数从 `0.9` 下调到 `0.82`
    3. 结果：移动端玩家框整体更小，遮挡概率进一步降低
+38. 公网 Docker 一键部署文件（2026-02-27）：
+   1. 新增后端镜像构建文件：`backend/Dockerfile`
+   2. 新增前端镜像构建文件：`frontend/Dockerfile` + `frontend/nginx.conf`
+   3. 新增生产编排：`deploy/docker-compose.prod.yml`
+   4. 新增反向代理配置：`deploy/Caddyfile`（自动 HTTPS 证书）
+   5. 新增部署环境模板：`deploy/.env.example`
+   6. 新增部署文档：`deploy/README.md`
+   7. 目标：云服务器拉代码后，通过 `docker compose ... up -d --build` 直接上线
 
 ## 10. 当前未完成项（必须继续）
 
