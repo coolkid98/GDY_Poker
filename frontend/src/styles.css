@@ -226,6 +226,14 @@ button:disabled {
   color: #fff8e1;
 }
 
+.ready-btn.active {
+  border-color: #2d8a56;
+  background: linear-gradient(180deg, #50b07a 0%, #2f8c60 100%);
+  box-shadow:
+    0 0 0 2px #a6e5bf88,
+    0 6px 14px #00000021;
+}
+
 .action-wrap {
   display: flex;
   flex-wrap: wrap;

@@ -803,6 +803,7 @@ export const RoomPage = (): JSX.Element => {
   const selectedHasWildcard = hasWildcard(selectedCards);
 
   const readyDisabled = roomState?.status === "PLAYING" || roomState?.status === "DEALING";
+  const isReadySelf = Boolean(myPlayer?.ready);
   const passDisabled = !isMyTurn || !hasLastPlay;
   const playDisabled = !isMyTurn || selectedCards.length === 0;
   const replayDisabled = roomState?.status !== "READY" || !myPlayer || myPlayer.ready;
@@ -952,8 +953,13 @@ export const RoomPage = (): JSX.Element => {
         </div>
 
         <div className="action-wrap">
-          <button type="button" disabled={readyDisabled} onClick={() => sendReady(true)}>
-            准备
+          <button
+            type="button"
+            className={`ready-btn ${isReadySelf ? "active" : ""}`}
+            disabled={readyDisabled}
+            onClick={() => sendReady(true)}
+          >
+            {isReadySelf ? "已准备 ✅" : "准备"}
           </button>
           <button type="button" disabled={readyDisabled} onClick={() => sendReady(false)}>
             取消准备
