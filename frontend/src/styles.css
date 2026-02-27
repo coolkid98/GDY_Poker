@@ -1160,18 +1160,18 @@ button:disabled {
 
 @media (max-width: 640px) {
   .page {
-    padding: 10px 8px 14px;
-    gap: 8px;
+    padding: 8px 6px 12px;
+    gap: 6px;
   }
 
   .page-room {
     height: 100svh;
     min-height: 100svh;
     max-height: 100svh;
-    grid-template-rows: auto minmax(0, 1fr) minmax(112px, 29svh);
+    grid-template-rows: auto minmax(0, 1fr) minmax(96px, 25svh);
     overflow: hidden;
-    padding: calc(8px + env(safe-area-inset-top)) 8px calc(8px + env(safe-area-inset-bottom));
-    gap: 8px;
+    padding: calc(6px + env(safe-area-inset-top)) 6px calc(6px + env(safe-area-inset-bottom));
+    gap: 6px;
     align-content: stretch;
   }
 
@@ -1180,13 +1180,13 @@ button:disabled {
   }
 
   .room-hero {
-    padding: 10px;
-    max-height: 38svh;
+    padding: 8px;
+    max-height: 34svh;
     overflow-y: auto;
   }
 
   h2 {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   .room-hero h2 {
@@ -1196,31 +1196,31 @@ button:disabled {
   .toolbar {
     flex-direction: column;
     align-items: flex-start;
-    gap: 6px;
-    margin-bottom: 8px;
+    gap: 5px;
+    margin-bottom: 6px;
   }
 
   .toolbar .ghost-btn {
-    height: 34px;
-    min-width: 84px;
-    font-size: 14px;
+    height: 30px;
+    min-width: 76px;
+    font-size: 13px;
   }
 
   .toolbar-actions {
     width: 100%;
     justify-content: space-between;
-    gap: 8px;
+    gap: 6px;
   }
 
   .status-row {
-    gap: 6px;
-    margin-bottom: 8px;
+    gap: 5px;
+    margin-bottom: 6px;
   }
 
   .status-pill {
-    height: 24px;
-    padding: 0 7px;
-    font-size: 11px;
+    height: 22px;
+    padding: 0 6px;
+    font-size: 10px;
   }
 
   .mobile-only {
@@ -1230,12 +1230,12 @@ button:disabled {
   }
 
   .battle-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(118px, 34vw);
-    gap: 8px;
+    grid-template-columns: minmax(0, 1fr) minmax(108px, 31vw);
+    gap: 6px;
   }
 
   .room-battle {
-    padding: 8px;
+    padding: 6px;
     min-height: 0;
     overflow: hidden;
   }
@@ -1254,14 +1254,14 @@ button:disabled {
   .action-wrap {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
+    gap: 5px;
   }
 
   .action-wrap button {
     width: 100%;
     min-width: 0;
-    height: 34px;
-    font-size: 13px;
+    height: 30px;
+    font-size: 12px;
   }
 
   .hero-turn-btn {
@@ -1269,8 +1269,8 @@ button:disabled {
   }
 
   .hint-line {
-    margin-top: 6px;
-    font-size: 12px;
+    margin-top: 4px;
+    font-size: 11px;
   }
 
   .room-hand {
@@ -1278,7 +1278,7 @@ button:disabled {
     max-height: 100%;
     height: 100%;
     overflow: hidden;
-    padding: 8px;
+    padding: 6px;
     display: grid;
   }
 
@@ -1290,45 +1290,45 @@ button:disabled {
   }
 
   .room-hand h3 {
-    font-size: 17px;
-    margin-bottom: 8px;
+    font-size: 16px;
+    margin-bottom: 6px;
   }
 
   .hand-shortcuts {
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     flex-direction: column;
     align-items: stretch;
-    gap: 6px;
-    padding: 7px 8px;
+    gap: 5px;
+    padding: 6px 7px;
   }
 
   .hand-shortcuts-info strong {
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .hand-shortcuts-info span {
-    font-size: 11px;
+    font-size: 10px;
   }
 
   .hand-shortcuts-actions {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
+    gap: 5px;
   }
 
   .hand-shortcuts-actions button {
     width: 100%;
     min-width: 0;
-    height: 30px;
-    font-size: 12px;
+    height: 28px;
+    font-size: 11px;
   }
 
   .room-hand .cards-grid {
     flex-wrap: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
-    padding-bottom: 4px;
-    gap: 8px;
+    padding-bottom: 3px;
+    gap: 6px;
     align-items: stretch;
   }
 
@@ -1342,80 +1342,85 @@ button:disabled {
   }
 
   .arena-table {
-    width: 92%;
-    height: 56%;
-    top: 54%;
-    padding: 8px 10px 10px;
+    width: 91%;
+    height: 54%;
+    top: 53%;
+    padding: 6px 8px 8px;
   }
 
   .table-stage-head h4 {
-    font-size: 16px;
+    font-size: 14px;
   }
 
   .draw-banner {
-    height: 22px;
-    padding: 0 8px;
-    font-size: 10px;
+    height: 20px;
+    padding: 0 7px;
+    font-size: 9px;
   }
 
   .table-current {
-    min-height: 70px;
-    padding: 8px;
+    min-height: 60px;
+    padding: 6px;
   }
 
   .table-cards {
-    gap: 6px;
-  }
-
-  .table-card {
-    min-width: 56px;
-    min-height: 42px;
-    border-width: 1px;
-    border-radius: 8px;
-    padding: 4px 6px;
-  }
-
-  .table-card-main {
-    font-size: 20px;
-  }
-
-  .table-history-title {
-    font-size: 11px;
-  }
-
-  .table-history-list {
-    min-height: 24px;
     gap: 5px;
   }
 
-  .trail-item {
-    height: 22px;
-    padding: 0 7px;
+  .table-card {
+    min-width: 48px;
+    min-height: 36px;
+    border-width: 1px;
+    border-radius: 7px;
+    padding: 3px 5px;
+  }
+
+  .table-card-main {
+    font-size: 17px;
+  }
+
+  .table-history-title {
     font-size: 10px;
+  }
+
+  .table-history-list {
+    min-height: 20px;
+    gap: 4px;
+  }
+
+  .trail-item {
+    height: 20px;
+    padding: 0 6px;
+    font-size: 9px;
   }
 
   .arena-seat {
-    width: 92px;
-    padding: 4px;
+    width: 78px;
+    padding: 3px;
   }
 
   .arena-seat-hand-card {
-    width: 10px;
-    height: 15px;
-    margin-left: -5px;
+    width: 8px;
+    height: 12px;
+    margin-left: -4px;
+  }
+
+  .arena-seat-hand-more {
+    margin-left: 3px;
+    font-size: 8px;
   }
 
   .arena-seat-head strong {
-    font-size: 11px;
+    font-size: 10px;
   }
 
   .arena-seat-head span {
-    font-size: 10px;
+    font-size: 9px;
   }
 
   .arena-seat-meta {
-    gap: 6px;
-    font-size: 10px;
+    gap: 4px;
+    font-size: 9px;
   }
 
   .arena-seat-meta span:first-child {
@@ -1428,11 +1433,12 @@ button:disabled {
 
   .arena-seat-meta,
   .arena-seat-last {
-    font-size: 10px;
+    font-size: 9px;
   }
 
   .arena-seat-last {
-    min-height: 20px;
+    min-height: 16px;
+    padding: 0 4px;
   }
 
   .arena-seat-turn-tip {
@@ -1440,36 +1446,40 @@ button:disabled {
   }
 
   .players-sidebar {
-    padding: 8px;
-    gap: 8px;
+    padding: 6px;
+    gap: 6px;
   }
 
   .players-sidebar h3 {
-    font-size: 16px;
+    font-size: 14px;
   }
 
   .player-side-item {
-    padding: 6px;
-    gap: 4px;
+    padding: 5px;
+    gap: 3px;
   }
 
   .player-side-head strong {
-    font-size: 13px;
+    font-size: 11px;
   }
 
   .player-side-head {
-    gap: 4px;
+    gap: 3px;
+  }
+
+  .seat-index {
+    font-size: 10px;
   }
 
   .seat-tag {
-    margin-left: 4px;
-    font-size: 10px;
-    padding: 1px 6px;
+    margin-left: 2px;
+    font-size: 9px;
+    padding: 1px 5px;
   }
 
   .player-side-meta {
-    font-size: 10px;
-    gap: 4px;
+    font-size: 9px;
+    gap: 3px;
   }
 
   .player-side-action {
@@ -1477,31 +1487,33 @@ button:disabled {
   }
 
   .played-visual-grid {
-    max-height: 220px;
+    max-height: 200px;
   }
 
   .played-visual-item {
-    width: 58px;
+    width: 52px;
   }
 
   .played-visual-card {
-    width: 50px;
-    height: 64px;
-    font-size: 18px;
+    width: 44px;
+    height: 56px;
+    font-size: 15px;
   }
 
   .room-hand .card-btn {
-    min-width: 92px;
-    min-height: 60px;
-    padding: 4px;
+    min-width: 72px;
+    min-height: 52px;
+    padding: 3px;
+    border-width: 1.5px;
+    border-radius: 10px;
   }
 
   .room-hand .card-main {
-    font-size: 19px;
+    font-size: 16px;
   }
 
   .room-hand .card-sub {
-    font-size: 10px;
+    font-size: 9px;
   }
 
   .mobile-info-backdrop {
@@ -1603,5 +1615,80 @@ button:disabled {
 
   .room-info .played-visual-grid {
     max-height: none;
+  }
+}
+
+@media (max-width: 430px) {
+  .room-hero {
+    max-height: 32svh;
+  }
+
+  .toolbar .ghost-btn {
+    height: 28px;
+    min-width: 72px;
+    font-size: 12px;
+  }
+
+  .status-pill {
+    height: 20px;
+    font-size: 9px;
+    padding: 0 5px;
+  }
+
+  .action-wrap button {
+    height: 28px;
+    font-size: 11px;
+  }
+
+  .battle-layout {
+    grid-template-columns: minmax(0, 1fr) 102px;
+    gap: 5px;
+  }
+
+  .arena-seat {
+    width: 72px;
+  }
+
+  .arena-seat-head strong {
+    font-size: 9px;
+  }
+
+  .arena-seat-last {
+    min-height: 15px;
+    font-size: 8px;
+  }
+
+  .players-sidebar h3 {
+    font-size: 13px;
+  }
+
+  .player-side-head strong {
+    font-size: 10px;
+  }
+
+  .player-side-meta {
+    font-size: 8px;
+  }
+
+  .table-current {
+    min-height: 56px;
+  }
+
+  .table-card {
+    min-width: 44px;
+    min-height: 34px;
+  }
+
+  .table-card-main {
+    font-size: 16px;
+  }
+
+  .room-hand .card-btn {
+    min-width: 66px;
+    min-height: 48px;
+  }
+
+  .room-hand .card-main {
+    font-size: 14px;
   }
 }

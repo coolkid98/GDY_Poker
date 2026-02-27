@@ -162,16 +162,16 @@ const buildSeatLayout = (players: UiPlayer[], mySeat: number | null): SeatLayout
   if (viewport === "mobile") {
     if (sorted.length <= 2) {
       radiusX = 0;
-      radiusY = 40;
+      radiusY = 34;
     } else if (sorted.length <= 4) {
-      radiusX = 34;
-      radiusY = 40;
+      radiusX = 30;
+      radiusY = 35;
     } else if (sorted.length <= 6) {
-      radiusX = 40;
-      radiusY = 39;
+      radiusX = 35;
+      radiusY = 36;
     } else {
-      radiusX = 42;
-      radiusY = 41;
+      radiusX = 38;
+      radiusY = 38;
     }
   }
 
