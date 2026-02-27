@@ -103,10 +103,23 @@ interface DrawFlightItem {
   seat: number;
 }
 
+interface PlayFlightItem {
+  id: string;
+  seat: number;
+  cardId: string;
+  index: number;
+}
+
 interface BombFxState {
   tick: number;
   seat: number;
   key: string;
+}
+
+interface WinnerFxState {
+  tick: number;
+  seat: number;
+  nickname: string;
 }
 
 const generateActionId = (): string => {
@@ -300,7 +313,9 @@ export const RoomPage = (): JSX.Element => {
   const [tableActions, setTableActions] = useState<TableActionItem[]>([]);
   const [playedVisualCards, setPlayedVisualCards] = useState<PlayedVisualCard[]>([]);
   const [drawFlights, setDrawFlights] = useState<DrawFlightItem[]>([]);
+  const [playFlights, setPlayFlights] = useState<PlayFlightItem[]>([]);
   const [bombFx, setBombFx] = useState<BombFxState | null>(null);
+  const [winnerFx, setWinnerFx] = useState<WinnerFxState | null>(null);
 
   const arenaBoardRef = useRef<HTMLDivElement | null>(null);
   const [arenaBoardSize, setArenaBoardSize] = useState<ArenaBoardSize>({
@@ -313,7 +328,9 @@ export const RoomPage = (): JSX.Element => {
   const deckPulseTimerRef = useRef<number | null>(null);
   const incomingCardTimerRef = useRef<number | null>(null);
   const flightTimersRef = useRef<Record<string, number>>({});
+  const playFlightTimersRef = useRef<Record<string, number>>({});
   const bombFxTimerRef = useRef<number | null>(null);
+  const winnerFxTimerRef = useRef<number | null>(null);
 
   const { nickname, sessionId, roomState, hand, setConnected, setRoomMeta, setHand, setRoomState, appendLog, clearRoom } =
     useGameStore();
@@ -406,10 +423,17 @@ export const RoomPage = (): JSX.Element => {
       if (bombFxTimerRef.current !== null) {
         window.clearTimeout(bombFxTimerRef.current);
       }
+      if (winnerFxTimerRef.current !== null) {
+        window.clearTimeout(winnerFxTimerRef.current);
+      }
       Object.values(flightTimersRef.current).forEach((timerId) => {
         window.clearTimeout(timerId);
       });
+      Object.values(playFlightTimersRef.current).forEach((timerId) => {
+        window.clearTimeout(timerId);
+      });
       flightTimersRef.current = {};
+      playFlightTimersRef.current = {};
     };
   }, []);
 
@@ -488,6 +512,7 @@ export const RoomPage = (): JSX.Element => {
           const players = normalizePlayers(toPlayersLike(rawState.players)).sort((a, b) => a.seat - b.seat);
           const lastPlayCards = toArray(rawState.lastPlay?.cards);
           const hasLastPlay = Number(rawState.lastPlay?.seat ?? -1) >= 0 && lastPlayCards.length > 0;
+          const nextStatus = String(rawState.status ?? "");
 
           const nextLastPlay: UiLastPlay | null = hasLastPlay
             ? {
@@ -501,7 +526,7 @@ export const RoomPage = (): JSX.Element => {
 
           setRoomState({
             roomId: String(rawState.roomId ?? room.roomId),
-            status: String(rawState.status ?? ""),
+            status: nextStatus,
             dealerSeat: Number(rawState.dealerSeat ?? -1),
             turnSeat: Number(rawState.turnSeat ?? -1),
             deckCount: Number(rawState.deckCount ?? 0),
@@ -510,7 +535,13 @@ export const RoomPage = (): JSX.Element => {
             players
           });
 
-          setTablePlayView(nextLastPlay);
+          if (nextLastPlay) {
+            setTablePlayView(nextLastPlay);
+            return;
+          }
+          if (nextStatus === "PLAYING") {
+            setTablePlayView(null);
+          }
         });
 
         room.onMessage("hand_dealt", (message: { cards: string[] }) => {
@@ -522,7 +553,15 @@ export const RoomPage = (): JSX.Element => {
           setTableActions([]);
           setPlayedVisualCards([]);
           setDrawFlights([]);
+          setPlayFlights([]);
+          Object.values(playFlightTimersRef.current).forEach((timerId) => window.clearTimeout(timerId));
+          playFlightTimersRef.current = {};
           setBombFx(null);
+          if (winnerFxTimerRef.current !== null) {
+            window.clearTimeout(winnerFxTimerRef.current);
+            winnerFxTimerRef.current = null;
+          }
+          setWinnerFx(null);
           pushEventLog({
             kind: "system",
             text: `收到发牌：${message.cards?.length ?? 0} 张`
@@ -566,6 +605,7 @@ export const RoomPage = (): JSX.Element => {
         room.onMessage("played", (message: PlayedMessage) => {
           const cards = sortCardIds(message.cards ?? []);
           const seatName = resolveSeatName(message.seat);
+          setWinnerFx(null);
           setTablePlayView({
             seat: message.seat,
             declaredType: message.declaredType,
@@ -604,6 +644,25 @@ export const RoomPage = (): JSX.Element => {
             }));
             return [...prev, ...appended].slice(-300);
           });
+
+          const now = Date.now();
+          const flights = cards.map((cardId, index) => ({
+            id: `pf-${now}-${message.seat}-${index}-${Math.random().toString(36).slice(2, 6)}`,
+            seat: message.seat,
+            cardId,
+            index
+          }));
+          setPlayFlights((prev) => [...prev.slice(-24), ...flights]);
+          for (const flight of flights) {
+            const timeout = window.setTimeout(
+              () => {
+                setPlayFlights((prev) => prev.filter((item) => item.id !== flight.id));
+                delete playFlightTimersRef.current[flight.id];
+              },
+              560 + flight.index * 70
+            );
+            playFlightTimersRef.current[flight.id] = timeout;
+          }
 
           if (message.declaredType === "bomb") {
             setBombFx({
@@ -660,7 +719,15 @@ export const RoomPage = (): JSX.Element => {
           setTableAnimTick((tick) => tick + 1);
           setSeatRecentPlays({});
           setTableActions([]);
+          setPlayFlights([]);
+          Object.values(playFlightTimersRef.current).forEach((timerId) => window.clearTimeout(timerId));
+          playFlightTimersRef.current = {};
           setBombFx(null);
+          if (winnerFxTimerRef.current !== null) {
+            window.clearTimeout(winnerFxTimerRef.current);
+            winnerFxTimerRef.current = null;
+          }
+          setWinnerFx(null);
           pushEventLog({
             kind: "system",
             text: `新一轮开始，${seatWithName(message.turnSeat)} 先手`
@@ -668,11 +735,22 @@ export const RoomPage = (): JSX.Element => {
         });
 
         room.onMessage("settlement", (message: { winnerSeat: number }) => {
-          setTablePlayView(null);
-          setSeatRecentPlays({});
-          setTableActions([]);
-          setDrawFlights([]);
           setBombFx(null);
+          setPlayFlights([]);
+          Object.values(playFlightTimersRef.current).forEach((timerId) => window.clearTimeout(timerId));
+          playFlightTimersRef.current = {};
+          if (winnerFxTimerRef.current !== null) {
+            window.clearTimeout(winnerFxTimerRef.current);
+          }
+          setWinnerFx({
+            tick: Date.now(),
+            seat: message.winnerSeat,
+            nickname: resolveSeatName(message.winnerSeat)
+          });
+          winnerFxTimerRef.current = window.setTimeout(() => {
+            setWinnerFx(null);
+            winnerFxTimerRef.current = null;
+          }, 2200);
           pushEventLog({
             kind: "settlement",
             text: `本局结算，赢家 ${seatWithName(message.winnerSeat)}`
@@ -991,6 +1069,22 @@ export const RoomPage = (): JSX.Element => {
               })}
             </div>
 
+            <div className="play-flight-layer">
+              {playFlights.map((flight) => {
+                const from = seatPositionMap[flight.seat] ?? { left: 50, top: 50 };
+                const style = {
+                  "--from-left": `${from.left}%`,
+                  "--from-top": `${from.top}%`,
+                  animationDelay: `${flight.index * 70}ms`
+                } as CSSProperties;
+                return (
+                  <div key={flight.id} className={`play-flight-card ${cardThemeClass(flight.cardId)}`} style={style}>
+                    {toCardLabel(flight.cardId)}
+                  </div>
+                );
+              })}
+            </div>
+
             {bombFx && (
               <div key={`bomb-${bombFx.tick}`} className="bomb-effect" aria-hidden="true">
                 <span className="bomb-flash" />
@@ -1003,11 +1097,18 @@ export const RoomPage = (): JSX.Element => {
               </div>
             )}
 
+            {winnerFx && (
+              <div key={`winner-${winnerFx.tick}`} className="winner-banner" aria-live="polite">
+                {seatWithName(winnerFx.seat)} 出光手牌，获胜！
+              </div>
+            )}
+
             {seatLayout.map((seat) => {
               const player = seat.player;
               const isMe = player.sessionId === myPlayer?.sessionId;
               const isTurnSeat = player.seat === roomState?.turnSeat;
               const isDrawPulse = Boolean(drawPulseSeats[player.seat]);
+              const isWinnerSeat = winnerFx?.seat === player.seat;
               const isReady = player.ready;
               const showReadyNow = Boolean(showReadyOnTableSeat);
               const recent = seatRecentPlays[player.seat];
@@ -1019,6 +1120,7 @@ export const RoomPage = (): JSX.Element => {
                 isMe ? "me" : "",
                 isTurnSeat ? "turn" : "",
                 isDrawPulse ? "drew" : "",
+                isWinnerSeat ? "winner" : "",
                 showReadyNow && isReady ? "ready" : ""
               ]
                 .filter(Boolean)

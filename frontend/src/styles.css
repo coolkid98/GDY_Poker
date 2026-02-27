@@ -348,6 +348,13 @@ button:disabled {
   z-index: 3;
 }
 
+.play-flight-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+
 .draw-flight-card {
   position: absolute;
   left: 50%;
@@ -382,6 +389,56 @@ button:disabled {
   }
 }
 
+.play-flight-card {
+  position: absolute;
+  left: var(--from-left, 50%);
+  top: var(--from-top, 50%);
+  min-width: calc(50px * var(--arena-card-scale, 1));
+  height: calc(38px * var(--arena-card-scale, 1));
+  border-radius: calc(10px * var(--arena-card-scale, 1));
+  border: 1px solid #314755;
+  background: linear-gradient(180deg, #ffffff 0%, #f2f6fa 100%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(26px * var(--arena-card-scale, 1));
+  font-weight: 700;
+  box-shadow: 0 8px 16px #00000033;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  animation: play-flight 520ms cubic-bezier(0.18, 0.9, 0.24, 1) forwards;
+}
+
+.play-flight-card.card-red {
+  color: var(--danger);
+}
+
+.play-flight-card.card-black {
+  color: #1a2b36;
+}
+
+.play-flight-card.card-joker {
+  color: #4b2b8b;
+}
+
+@keyframes play-flight {
+  0% {
+    opacity: 0;
+    left: var(--from-left, 50%);
+    top: var(--from-top, 50%);
+    transform: translate(-50%, -50%) scale(0.76) rotate(-6deg);
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(0.9) rotate(0deg);
+  }
+}
+
 .bomb-effect {
   position: absolute;
   left: 50%;
@@ -390,7 +447,7 @@ button:disabled {
   height: min(44%, 280px);
   transform: translate(-50%, -50%);
   pointer-events: none;
-  z-index: 4;
+  z-index: 6;
   display: grid;
   place-items: center;
   animation: bomb-fade 900ms ease-out forwards;
@@ -538,6 +595,54 @@ button:disabled {
   }
 }
 
+.winner-banner {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 7;
+  min-width: min(72%, 420px);
+  height: calc(50px * var(--arena-card-scale, 1));
+  padding: 0 calc(16px * var(--arena-card-scale, 1));
+  border-radius: 999px;
+  border: 1px solid #f1d18f;
+  background: linear-gradient(180deg, #fff4d8 0%, #ffd98f 55%, #efb857 100%);
+  color: #6a3000;
+  font-size: calc(20px * var(--arena-card-scale, 1));
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 28px #0000004d;
+  text-shadow: 0 1px 1px #fff3dc;
+  animation: winner-banner 2200ms cubic-bezier(0.2, 0.9, 0.24, 1) both;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes winner-banner {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.72);
+  }
+  16% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+  30% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  86% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.92);
+  }
+}
+
 .table-current {
   min-height: calc(104px * var(--arena-card-scale, 1));
   border: 1px dashed #d7caab;
@@ -662,6 +767,19 @@ button:disabled {
 .arena-seat.me {
   border-color: #79b8ff;
   box-shadow: 0 0 0 2px #79b8ff45, 0 8px 18px #0000002f;
+}
+
+.arena-seat.winner {
+  border-color: #d68f0f;
+  background: linear-gradient(180deg, #fff7e3 0%, #f4e3be 100%);
+  box-shadow:
+    0 0 0 3px #d68f0f8a,
+    0 0 28px #d68f0f66,
+    0 10px 20px #00000033;
+}
+
+.arena-seat.winner .arena-seat-head strong {
+  color: #704000;
 }
 
 .arena-seat.ready {
@@ -1596,6 +1714,13 @@ button:disabled {
     height: min(42%, 170px);
   }
 
+  .play-flight-card {
+    min-width: calc(40px * var(--arena-card-scale, 1));
+    height: calc(30px * var(--arena-card-scale, 1));
+    font-size: calc(20px * var(--arena-card-scale, 1));
+    border-radius: calc(8px * var(--arena-card-scale, 1));
+  }
+
   .bomb-core {
     min-width: calc(88px * var(--arena-card-scale, 1));
     height: calc(40px * var(--arena-card-scale, 1));
@@ -1608,6 +1733,13 @@ button:disabled {
     height: calc(22px * var(--arena-card-scale, 1));
     font-size: calc(10px * var(--arena-card-scale, 1));
     padding: 0 calc(7px * var(--arena-card-scale, 1));
+  }
+
+  .winner-banner {
+    min-width: min(80%, 240px);
+    height: calc(34px * var(--arena-card-scale, 1));
+    font-size: calc(12px * var(--arena-card-scale, 1));
+    padding: 0 calc(8px * var(--arena-card-scale, 1));
   }
 
   .table-current {

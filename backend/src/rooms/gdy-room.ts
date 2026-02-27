@@ -118,7 +118,7 @@ export class GdyRoom extends Room<GdyState> {
     }
 
     if (this.state.status === "PLAYING") {
-      this.send(client, "action_result", {
+      client.send("action_result", {
         ok: false,
         reason: "GAME_ALREADY_STARTED"
       });
@@ -136,31 +136,31 @@ export class GdyRoom extends Room<GdyState> {
   private handlePlayCards(client: Client, message: PlayCardsMessage): void {
     const actionValidation = this.validateActionBase(client, message.actionId);
     if (!actionValidation.ok) {
-      this.send(client, "action_result", actionValidation);
+      client.send("action_result", actionValidation);
       return;
     }
 
     const player = this.state.players.get(client.sessionId);
     if (!player) {
-      this.send(client, "action_result", { ok: false, reason: "PLAYER_NOT_FOUND" });
+      client.send("action_result", { ok: false, reason: "PLAYER_NOT_FOUND" });
       return;
     }
 
     if (player.seat !== this.state.turnSeat) {
-      this.send(client, "action_result", { ok: false, reason: "NOT_YOUR_TURN" });
+      client.send("action_result", { ok: false, reason: "NOT_YOUR_TURN" });
       return;
     }
 
     const ownedCards = this.playerHands.get(client.sessionId) ?? [];
     const cards = message.cards ?? [];
     if (cards.length === 0) {
-      this.send(client, "action_result", { ok: false, reason: "EMPTY_PLAY" });
+      client.send("action_result", { ok: false, reason: "EMPTY_PLAY" });
       return;
     }
 
     const hasEveryCard = cards.every((id) => ownedCards.includes(id));
     if (!hasEveryCard) {
-      this.send(client, "action_result", { ok: false, reason: "CARD_NOT_OWNED" });
+      client.send("action_result", { ok: false, reason: "CARD_NOT_OWNED" });
       return;
     }
 
@@ -181,14 +181,14 @@ export class GdyRoom extends Room<GdyState> {
     );
 
     if (!validation.ok || !validation.play) {
-      this.send(client, "action_result", validation);
+      client.send("action_result", validation);
       return;
     }
 
     const nextHand = ownedCards.filter((cardId) => !cards.includes(cardId));
     this.playerHands.set(client.sessionId, nextHand);
     player.handCount = nextHand.length;
-    this.send(client, "hand_sync", { cards: nextHand });
+    client.send("hand_sync", { cards: nextHand });
 
     this.setLastPlay(player.seat, cards, validation.play.type, validation.play.key);
     this.state.passCount = 0;
@@ -217,18 +217,18 @@ export class GdyRoom extends Room<GdyState> {
   private handlePass(client: Client, message: PassMessage): void {
     const actionValidation = this.validateActionBase(client, message.actionId);
     if (!actionValidation.ok) {
-      this.send(client, "action_result", actionValidation);
+      client.send("action_result", actionValidation);
       return;
     }
 
     const player = this.state.players.get(client.sessionId);
     if (!player) {
-      this.send(client, "action_result", { ok: false, reason: "PLAYER_NOT_FOUND" });
+      client.send("action_result", { ok: false, reason: "PLAYER_NOT_FOUND" });
       return;
     }
 
     if (player.seat !== this.state.turnSeat) {
-      this.send(client, "action_result", { ok: false, reason: "NOT_YOUR_TURN" });
+      client.send("action_result", { ok: false, reason: "NOT_YOUR_TURN" });
       return;
     }
 
@@ -237,7 +237,7 @@ export class GdyRoom extends Room<GdyState> {
       currentTurnSeat: this.state.turnSeat
     });
     if (!validation.ok) {
-      this.send(client, "action_result", validation);
+      client.send("action_result", validation);
       return;
     }
 
@@ -343,7 +343,7 @@ export class GdyRoom extends Room<GdyState> {
     this.state.status = "PLAYING";
 
     for (const client of this.clients) {
-      this.send(client, "hand_dealt", {
+      client.send("hand_dealt", {
         cards: this.playerHands.get(client.sessionId) ?? []
       });
     }
@@ -411,7 +411,7 @@ export class GdyRoom extends Room<GdyState> {
 
     const client = this.clients.find((c) => c.sessionId === sessionId);
     if (client) {
-      this.send(client, "draw_card", { cardId: card.id });
+      client.send("draw_card", { cardId: card.id });
     }
     this.state.deckCount = this.deck.length;
 

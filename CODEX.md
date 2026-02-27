@@ -396,6 +396,19 @@
       1. 监听 `played` 消息中的 `declaredType === bomb`
       2. 在桌面出牌区中央触发一次炸弹闪光/冲击波/文字提示动画
       3. 动画自动收尾，并在发牌/清桌/结算阶段重置状态
+32. 后端警告清理与“出光手牌”可视化（2026-02-27）：
+   1. 后端 Colyseus deprecation 警告修复（`backend/src/rooms/gdy-room.ts`）：
+      1. 全量替换 `this.send(client, ...)` 为 `client.send(...)`
+      2. 启动日志不再刷 `DEPRECATION WARNING: use client.send(...)`
+   2. 结算前后桌面动画保留（`frontend/src/pages/RoomPage.tsx`）：
+      1. 状态同步时，只有在 `PLAYING` 且确实无上一手时才清空桌面牌
+      2. 修复“最后一手打出后动画瞬间消失”的问题
+   3. 新增“出牌飞向牌桌”过场（`frontend/src/pages/RoomPage.tsx` + `frontend/src/styles.css`）：
+      1. 每次 `played` 按牌张数触发飞牌动画（座位 -> 桌面中心）
+      2. 保留原桌面落牌动画，两者叠加提升反馈感
+   4. 新增“出光手牌获胜”UI提示（`frontend/src/pages/RoomPage.tsx` + `frontend/src/styles.css`）：
+      1. 结算时在桌面中央显示赢家提示条（含座位与昵称）
+      2. 赢家座位卡短时高亮，减少玩家对胜者身份的歧义
 
 ## 10. 当前未完成项（必须继续）
 
