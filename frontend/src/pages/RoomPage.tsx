@@ -173,19 +173,22 @@ const clampNumber = (value: number, min: number, max: number): number => {
 const computeArenaMetrics = (boardSize: ArenaBoardSize, playerCount: number): ArenaLayoutMetrics => {
   const width = Math.max(boardSize.width, 320);
   const height = Math.max(boardSize.height, 280);
+  const isNarrowScreen = width <= 640;
 
   const compactByWidth = clampNumber((620 - width) / 260, 0, 1);
   const compactByHeight = clampNumber((660 - height) / 260, 0, 1);
   const compact = Math.max(compactByWidth, compactByHeight);
 
-  const seatWidth = clampNumber(width * (0.18 - compact * 0.025), 64, 150);
+  const seatWidthFactor = isNarrowScreen ? 0.155 : 0.18;
+  const seatWidthCompactDelta = isNarrowScreen ? 0.03 : 0.025;
+  const seatWidth = clampNumber(width * (seatWidthFactor - compact * seatWidthCompactDelta), isNarrowScreen ? 56 : 64, 150);
   const seatScale = clampNumber(seatWidth / 150, 0.42, 1);
-  const cardScale = clampNumber(1 - compact * 0.34, 0.58, 1);
+  const cardScale = clampNumber(1 - compact * 0.34 - (isNarrowScreen ? 0.08 : 0), 0.54, 1);
   const trailScale = clampNumber(1 - compact * 0.36, 0.56, 1);
 
-  const tableWidthPercent = clampNumber(72 + compact * 10, 72, 84);
-  const tableHeightPercent = clampNumber(62 - compact * 12, 46, 62);
-  const tableTopPercent = clampNumber(50 + compact * 4, 50, 54);
+  const tableWidthPercent = clampNumber(72 + compact * 10 - (isNarrowScreen ? 4 : 0), 70, 84);
+  const tableHeightPercent = clampNumber(62 - compact * 12 - (isNarrowScreen ? 6 : 0), 42, 62);
+  const tableTopPercent = clampNumber(50 + compact * 4 + (isNarrowScreen ? 2 : 0), 50, 56);
   const tablePadX = clampNumber(30 - compact * 18, 10, 30);
   const tablePadY = clampNumber(18 - compact * 10, 6, 18);
 
@@ -215,8 +218,13 @@ const computeArenaMetrics = (boardSize: ArenaBoardSize, playerCount: number): Ar
     baseRadiusYRatio = 0.88;
   }
 
-  const radiusX = playerCount <= 2 ? 0 : maxRadiusX * Math.max(0.68, baseRadiusXRatio - compact * 0.05);
-  const radiusY = maxRadiusY * Math.max(0.64, baseRadiusYRatio - compact * 0.06);
+  const mobileRadiusBoostX = isNarrowScreen ? 0.1 : 0;
+  const mobileRadiusBoostY = isNarrowScreen ? 0.14 : 0;
+  const radiusXRatio = clampNumber(baseRadiusXRatio - compact * 0.05 + mobileRadiusBoostX, 0.68, 0.98);
+  const radiusYRatio = clampNumber(baseRadiusYRatio - compact * 0.06 + mobileRadiusBoostY, 0.64, 1);
+
+  const radiusX = playerCount <= 2 ? 0 : maxRadiusX * radiusXRatio;
+  const radiusY = maxRadiusY * radiusYRatio;
 
   return {
     width,
@@ -273,8 +281,8 @@ const buildSeatLayout = (players: UiPlayer[], mySeat: number | null, metrics: Ar
     const angle = (angleDeg * Math.PI) / 180;
     const leftPx = metrics.width / 2 + Math.cos(angle) * metrics.radiusX;
     const topPx = metrics.height / 2 + Math.sin(angle) * metrics.radiusY;
-    const leftPercent = clampNumber((leftPx / metrics.width) * 100, 4, 96);
-    const topPercent = clampNumber((topPx / metrics.height) * 100, 4, 96);
+    const leftPercent = clampNumber((leftPx / metrics.width) * 100, 2, 98);
+    const topPercent = clampNumber((topPx / metrics.height) * 100, 2, 98);
 
     return {
       player,

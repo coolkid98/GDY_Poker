@@ -419,6 +419,26 @@
    1. 房间顶部“准备”按钮在本人已准备时改为 `已准备 ✅`（`frontend/src/pages/RoomPage.tsx`）
    2. 对应按钮增加高亮样式（绿色渐变+描边发光，`frontend/src/styles.css`）
    3. 目的：避免玩家点击准备后误以为未生效
+35. 移动端桌面座位遮挡修复（2026-02-27）：
+   1. 缩小移动端座位框（`frontend/src/pages/RoomPage.tsx`）：
+      1. 在 `computeArenaMetrics` 中针对窄屏降低 `seatWidth` 基准与下限
+      2. 结果：玩家框占位更小，不会压住桌面中心区域
+   2. 拉开座位与牌桌距离（`frontend/src/pages/RoomPage.tsx`）：
+      1. 移动端提高环形半径 `radiusX/radiusY`，并放宽边界 clamp（2%~98%）
+      2. 同时缩小并下移椭圆牌桌（`tableWidth/tableHeight/tableTop`）让出安全间距
+   3. 避免玩家框遮挡桌牌（`frontend/src/styles.css`）：
+      1. 提升 `.arena-table` 层级到高于 `.arena-seat`
+      2. 即使座位靠近桌缘，桌面中央牌型仍保持可见
+36. 桌面视觉重做（去椭圆 + 半透明重叠美化，2026-02-27）：
+   1. 移除椭圆桌面主体视觉（`frontend/src/styles.css`）：
+      1. `.arena-table` 去掉椭圆边框/底色/阴影
+      2. 保留“桌面出牌区”信息层，改为透明容器承载
+   2. 中央出牌框改为玻璃态（`frontend/src/styles.css`）：
+      1. `table-current` 使用半透明渐变 + 轻阴影 + 虚线边框
+      2. 保持牌区可读性，同时减少厚重遮挡感
+   3. 玩家框重叠可视化优化（`frontend/src/styles.css`）：
+      1. `arena-seat` 改为半透明磨砂背景，并适度提高层级
+      2. turn/ready 等状态保持高亮，但不再完全盖住下层内容
 
 ## 10. 当前未完成项（必须继续）
 
