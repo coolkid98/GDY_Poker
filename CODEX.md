@@ -455,6 +455,11 @@
    5. 新增部署环境模板：`deploy/.env.example`
    6. 新增部署文档：`deploy/README.md`
    7. 目标：云服务器拉代码后，通过 `docker compose ... up -d --build` 直接上线
+39. Caddy 重启问题修复（2026-02-27）：
+   1. 根因：`deploy/Caddyfile` 使用 `{$LETSENCRYPT_EMAIL}` / `{$GAME_DOMAIN}` / `{$API_DOMAIN}` 运行时变量
+   2. `deploy/docker-compose.prod.yml` 的 `caddy` 服务未注入上述环境变量，导致配置为空并重启
+   3. 修复：为 `caddy` 增加 `environment` 注入 3 个变量
+   4. 结果：Caddy 可正确解析域名并保持常驻运行
 
 ## 10. 当前未完成项（必须继续）
 

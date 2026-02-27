@@ -29,6 +29,10 @@ services:
     depends_on:
       - backend
       - frontend
+    environment:
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+      GAME_DOMAIN: ${GAME_DOMAIN}
+      API_DOMAIN: ${API_DOMAIN}
     ports:
       - "80:80"
       - "443:443"
