@@ -1527,8 +1527,11 @@ button:disabled {
     top: max(72px, 12svh);
     bottom: calc(env(safe-area-inset-bottom) + 4px);
     z-index: 60;
+    animation: none;
     transform: translateY(106%);
-    transition: transform 220ms ease;
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 220ms ease, opacity 180ms ease;
     margin: 0;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
@@ -1538,6 +1541,8 @@ button:disabled {
 
   .room-info.open {
     transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .room-info-header {
