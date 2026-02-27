@@ -382,6 +382,162 @@ button:disabled {
   }
 }
 
+.bomb-effect {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(56%, 460px);
+  height: min(44%, 280px);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  animation: bomb-fade 900ms ease-out forwards;
+}
+
+.bomb-flash {
+  position: absolute;
+  width: calc(210px * var(--arena-card-scale, 1));
+  height: calc(210px * var(--arena-card-scale, 1));
+  border-radius: 999px;
+  background: radial-gradient(circle, #ffe9b8f2 0%, #ffbf66d4 34%, #ff9f3b6f 60%, transparent 74%);
+  animation: bomb-flash 900ms ease-out forwards;
+}
+
+.bomb-ripple {
+  position: absolute;
+  border-radius: 999px;
+  border: 3px solid #ffd58ecc;
+  width: calc(120px * var(--arena-card-scale, 1));
+  height: calc(120px * var(--arena-card-scale, 1));
+  opacity: 0;
+}
+
+.bomb-ripple-a {
+  animation: bomb-ripple 900ms cubic-bezier(0.21, 0.89, 0.3, 1) 40ms forwards;
+}
+
+.bomb-ripple-b {
+  animation: bomb-ripple 900ms cubic-bezier(0.21, 0.89, 0.3, 1) 140ms forwards;
+}
+
+.bomb-core {
+  position: relative;
+  z-index: 1;
+  min-width: calc(116px * var(--arena-card-scale, 1));
+  height: calc(54px * var(--arena-card-scale, 1));
+  border-radius: 999px;
+  border: 1px solid #8a2900;
+  background: linear-gradient(180deg, #ffbf62 0%, #e16520 54%, #ac3b18 100%);
+  color: #fff2d2;
+  font-weight: 800;
+  font-size: calc(24px * var(--arena-card-scale, 1));
+  letter-spacing: 1.8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 0 3px 7px #0000006b;
+  box-shadow: 0 0 0 2px #ffcc7a66, 0 10px 20px #00000052;
+  animation: bomb-core 900ms cubic-bezier(0.2, 0.92, 0.24, 1) forwards;
+}
+
+.bomb-text {
+  position: absolute;
+  bottom: calc(14px * var(--arena-card-scale, 1));
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: calc(180px * var(--arena-card-scale, 1));
+  padding: 0 calc(12px * var(--arena-card-scale, 1));
+  height: calc(28px * var(--arena-card-scale, 1));
+  border-radius: 999px;
+  border: 1px solid #f4d49f;
+  background: #fff6dfeb;
+  color: #7a3c00;
+  font-size: calc(14px * var(--arena-card-scale, 1));
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  box-shadow: 0 6px 14px #00000030;
+  animation: bomb-text 900ms ease-out forwards;
+}
+
+@keyframes bomb-fade {
+  0% {
+    opacity: 0;
+  }
+  6% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes bomb-flash {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  24% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.55);
+    opacity: 0;
+  }
+}
+
+@keyframes bomb-ripple {
+  0% {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  20% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+
+@keyframes bomb-core {
+  0% {
+    transform: scale(0.68) rotate(-10deg);
+    opacity: 0;
+  }
+  26% {
+    transform: scale(1.12) rotate(5deg);
+    opacity: 1;
+  }
+  42% {
+    transform: scale(0.96) rotate(-2deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes bomb-text {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(12px);
+  }
+  28% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px);
+  }
+}
+
 .table-current {
   min-height: calc(104px * var(--arena-card-scale, 1));
   border: 1px dashed #d7caab;
@@ -1433,6 +1589,25 @@ button:disabled {
     --arena-seat-scale: calc(var(--arena-seat-scale, 1) * 0.9);
     --arena-card-scale: calc(var(--arena-card-scale, 1) * 0.8);
     --arena-trail-scale: calc(var(--arena-trail-scale, 1) * 0.9);
+  }
+
+  .bomb-effect {
+    width: min(64%, 260px);
+    height: min(42%, 170px);
+  }
+
+  .bomb-core {
+    min-width: calc(88px * var(--arena-card-scale, 1));
+    height: calc(40px * var(--arena-card-scale, 1));
+    font-size: calc(16px * var(--arena-card-scale, 1));
+    letter-spacing: 1px;
+  }
+
+  .bomb-text {
+    min-width: calc(132px * var(--arena-card-scale, 1));
+    height: calc(22px * var(--arena-card-scale, 1));
+    font-size: calc(10px * var(--arena-card-scale, 1));
+    padding: 0 calc(7px * var(--arena-card-scale, 1));
   }
 
   .table-current {

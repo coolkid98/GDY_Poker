@@ -82,24 +82,24 @@ export class RuleService {
       };
     }
 
-    const current = this.evaluatePlay(input.cards, input.declaredType, input.declaredKey);
+    let previousPlay: ParsedPlayResult | null = null;
+    if (input.lastPlay) {
+      const previous = this.evaluateLastPlay(input.lastPlay);
+      if (!previous.ok || !previous.play) {
+        return {
+          ok: false,
+          reason: "LAST_PLAY_INVALID"
+        };
+      }
+      previousPlay = previous.play;
+    }
+
+    const current = this.evaluatePlay(input.cards, input.declaredType, input.declaredKey, false, previousPlay);
     if (!current.ok || !current.play) {
       return current;
     }
 
-    if (!input.lastPlay) {
-      return current;
-    }
-
-    const previous = this.evaluateLastPlay(input.lastPlay);
-    if (!previous.ok || !previous.play) {
-      return {
-        ok: false,
-        reason: "LAST_PLAY_INVALID"
-      };
-    }
-
-    if (!this.canBeat(current.play, previous.play)) {
+    if (previousPlay && !this.canBeat(current.play, previousPlay)) {
       return {
         ok: false,
         reason: "CANNOT_BEAT_LAST_PLAY"
@@ -127,10 +127,16 @@ export class RuleService {
   }
 
   private evaluateLastPlay(lastPlay: LastPlaySnapshot): PlayValidationResult {
-    return this.evaluatePlay(lastPlay.cards, lastPlay.declaredType, lastPlay.declaredKey, true);
+    return this.evaluatePlay(lastPlay.cards, lastPlay.declaredType, lastPlay.declaredKey, true, null);
   }
 
-  private evaluatePlay(cards: string[], declaredType?: string, declaredKey?: string, fromLastPlay = false): PlayValidationResult {
+  private evaluatePlay(
+    cards: string[],
+    declaredType?: string,
+    declaredKey?: string,
+    fromLastPlay = false,
+    previousPlay: ParsedPlayResult | null = null
+  ): PlayValidationResult {
     const parsedCards: ParsedCardId[] = [];
     for (const cardId of cards) {
       const parsed = this.parseCardId(cardId);
@@ -148,15 +154,15 @@ export class RuleService {
     const key = toMainRank(declaredKey);
     const wildcards = wildcardCards.length;
     const counts = this.countRanks(nonWildcardCards.map((card) => card.rank as MainRank));
+    const hasDeclaredInput = Boolean(declaredType || declaredKey);
 
-    if (hasWildcard && (!type || !key)) {
-      return {
-        ok: false,
-        reason: "WILDCARD_DECLARE_REQUIRED"
-      };
-    }
-
-    if (type) {
+    if (hasDeclaredInput) {
+      if (!type) {
+        return {
+          ok: false,
+          reason: "UNKNOWN_PATTERN"
+        };
+      }
       const declared = this.validateDeclaredPattern(type, key, cards.length, counts, wildcards);
       if (!declared.ok) {
         return declared;
@@ -167,14 +173,65 @@ export class RuleService {
       };
     }
 
-    if (hasWildcard && !fromLastPlay) {
-      return {
-        ok: false,
-        reason: "WILDCARD_DECLARE_REQUIRED"
-      };
+    if (hasWildcard) {
+      const inferred = this.inferWildcardPattern(cards.length, counts, wildcards, previousPlay, fromLastPlay);
+      if (!inferred.ok || !inferred.play) {
+        return inferred;
+      }
+      return inferred;
     }
 
     return this.inferNaturalPattern(nonWildcardCards.map((card) => card.rank as MainRank));
+  }
+
+  private inferWildcardPattern(
+    length: number,
+    counts: Map<MainRank, number>,
+    wildcardCount: number,
+    previousPlay: ParsedPlayResult | null,
+    fromLastPlay: boolean
+  ): PlayValidationResult {
+    const candidates = this.collectWildcardCandidates(length, counts, wildcardCount);
+    if (candidates.length === 0) {
+      return {
+        ok: false,
+        reason: "UNKNOWN_PATTERN"
+      };
+    }
+
+    if (previousPlay) {
+      const beatable = candidates.filter((candidate) => this.canBeat(candidate, previousPlay));
+      if (beatable.length === 0) {
+        return {
+          ok: false,
+          reason: "CANNOT_BEAT_LAST_PLAY"
+        };
+      }
+      const picked = this.pickBestCandidate(beatable);
+      if (!picked) {
+        return {
+          ok: false,
+          reason: "CANNOT_BEAT_LAST_PLAY"
+        };
+      }
+      return {
+        ok: true,
+        play: picked
+      };
+    }
+
+    const picked = this.pickBestCandidate(candidates);
+    if (!picked) {
+      return {
+        ok: false,
+        reason: fromLastPlay ? "LAST_PLAY_INVALID" : "UNKNOWN_PATTERN"
+      };
+    }
+
+    return {
+      ok: true,
+      play: picked
+    };
   }
 
   private inferNaturalPattern(ranks: MainRank[]): PlayValidationResult {
@@ -373,6 +430,133 @@ export class RuleService {
       return true;
     }
     return currentIndex === previousIndex + 1;
+  }
+
+  private collectWildcardCandidates(
+    length: number,
+    counts: Map<MainRank, number>,
+    wildcardCount: number
+  ): ParsedPlayResult[] {
+    const candidates: ParsedPlayResult[] = [];
+
+    if (length === 1) {
+      for (const rank of NORMAL_RANKS) {
+        if (!this.canFormCount(counts, rank, 1, wildcardCount)) {
+          continue;
+        }
+        candidates.push({
+          type: "single",
+          key: rank,
+          length,
+          usedWildcards: wildcardCount
+        });
+      }
+    }
+
+    if (length === 2) {
+      for (const rank of NORMAL_RANKS) {
+        if (!this.canFormCount(counts, rank, 2, wildcardCount)) {
+          continue;
+        }
+        candidates.push({
+          type: "pair",
+          key: rank,
+          length,
+          usedWildcards: wildcardCount
+        });
+      }
+    }
+
+    if (length === 3 || length === 4) {
+      for (const rank of NORMAL_RANKS) {
+        if (!this.canFormCount(counts, rank, length, wildcardCount)) {
+          continue;
+        }
+        candidates.push({
+          type: "bomb",
+          key: rank,
+          length,
+          bombSize: length as 3 | 4,
+          usedWildcards: wildcardCount
+        });
+      }
+    }
+
+    if (length >= 3) {
+      for (const high of STRAIGHT_RANKS) {
+        if (!this.canFormStraight(high, length, counts, wildcardCount)) {
+          continue;
+        }
+        candidates.push({
+          type: "straight",
+          key: high,
+          length,
+          usedWildcards: wildcardCount
+        });
+      }
+    }
+
+    const deduped = new Map<string, ParsedPlayResult>();
+    for (const candidate of candidates) {
+      const dedupeKey = `${candidate.type}:${candidate.key}:${candidate.length}:${candidate.bombSize ?? 0}`;
+      if (!deduped.has(dedupeKey)) {
+        deduped.set(dedupeKey, candidate);
+      }
+    }
+
+    return [...deduped.values()];
+  }
+
+  private pickBestCandidate(candidates: ParsedPlayResult[]): ParsedPlayResult | null {
+    if (candidates.length === 0) {
+      return null;
+    }
+
+    const sorted = [...candidates].sort((a, b) => this.comparePlayStrength(a, b));
+    return sorted[0] ?? null;
+  }
+
+  private comparePlayStrength(a: ParsedPlayResult, b: ParsedPlayResult): number {
+    const weight: Record<PatternType, number> = {
+      single: 1,
+      pair: 2,
+      straight: 3,
+      bomb: 4
+    };
+
+    const typeDiff = weight[a.type] - weight[b.type];
+    if (typeDiff !== 0) {
+      return typeDiff;
+    }
+
+    if (a.type === "straight" && b.type === "straight") {
+      const lenDiff = a.length - b.length;
+      if (lenDiff !== 0) {
+        return lenDiff;
+      }
+      const rankDiff = this.compareStraightRank(a.key, b.key);
+      if (rankDiff !== 0) {
+        return rankDiff;
+      }
+      return a.usedWildcards - b.usedWildcards;
+    }
+
+    if (a.type === "bomb" && b.type === "bomb") {
+      if (a.bombSize !== b.bombSize) {
+        return (a.bombSize ?? 0) - (b.bombSize ?? 0);
+      }
+      const rankDiff = this.compareNormalRank(a.key, b.key);
+      if (rankDiff !== 0) {
+        return rankDiff;
+      }
+      return a.usedWildcards - b.usedWildcards;
+    }
+
+    const rankDiff = this.compareNormalRank(a.key, b.key);
+    if (rankDiff !== 0) {
+      return rankDiff;
+    }
+    return a.usedWildcards - b.usedWildcards;
   }
 
   private compareNormalRank(a: string, b: string): number {

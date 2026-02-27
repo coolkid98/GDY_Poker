@@ -18,7 +18,7 @@ const reasonMap: Record<string, string> = {
   TABLE_EMPTY_CANNOT_PASS: "当前无可跟牌型，先手不能过牌",
   GAME_NOT_PLAYING: "当前不在出牌阶段",
   NOT_YOUR_TURN: "还没轮到你出牌",
-  WILDCARD_DECLARE_REQUIRED: "使用赖子时需要声明牌型和关键点数",
+  WILDCARD_DECLARE_REQUIRED: "赖子牌型定型失败，请补充声明后重试",
   CANNOT_BEAT_LAST_PLAY: "这手牌无法压过上一手",
   INVALID_STRAIGHT: "顺子声明不合法",
   CARD_NOT_OWNED: "你出的牌不在手牌中",
@@ -101,6 +101,12 @@ interface PlayedVisualCard {
 interface DrawFlightItem {
   id: string;
   seat: number;
+}
+
+interface BombFxState {
+  tick: number;
+  seat: number;
+  key: string;
 }
 
 const generateActionId = (): string => {
@@ -294,6 +300,7 @@ export const RoomPage = (): JSX.Element => {
   const [tableActions, setTableActions] = useState<TableActionItem[]>([]);
   const [playedVisualCards, setPlayedVisualCards] = useState<PlayedVisualCard[]>([]);
   const [drawFlights, setDrawFlights] = useState<DrawFlightItem[]>([]);
+  const [bombFx, setBombFx] = useState<BombFxState | null>(null);
 
   const arenaBoardRef = useRef<HTMLDivElement | null>(null);
   const [arenaBoardSize, setArenaBoardSize] = useState<ArenaBoardSize>({
@@ -306,6 +313,7 @@ export const RoomPage = (): JSX.Element => {
   const deckPulseTimerRef = useRef<number | null>(null);
   const incomingCardTimerRef = useRef<number | null>(null);
   const flightTimersRef = useRef<Record<string, number>>({});
+  const bombFxTimerRef = useRef<number | null>(null);
 
   const { nickname, sessionId, roomState, hand, setConnected, setRoomMeta, setHand, setRoomState, appendLog, clearRoom } =
     useGameStore();
@@ -394,6 +402,9 @@ export const RoomPage = (): JSX.Element => {
       }
       if (incomingCardTimerRef.current !== null) {
         window.clearTimeout(incomingCardTimerRef.current);
+      }
+      if (bombFxTimerRef.current !== null) {
+        window.clearTimeout(bombFxTimerRef.current);
       }
       Object.values(flightTimersRef.current).forEach((timerId) => {
         window.clearTimeout(timerId);
@@ -511,6 +522,7 @@ export const RoomPage = (): JSX.Element => {
           setTableActions([]);
           setPlayedVisualCards([]);
           setDrawFlights([]);
+          setBombFx(null);
           pushEventLog({
             kind: "system",
             text: `收到发牌：${message.cards?.length ?? 0} 张`
@@ -593,6 +605,20 @@ export const RoomPage = (): JSX.Element => {
             return [...prev, ...appended].slice(-300);
           });
 
+          if (message.declaredType === "bomb") {
+            setBombFx({
+              tick: Date.now(),
+              seat: message.seat,
+              key: message.declaredKey
+            });
+            if (bombFxTimerRef.current !== null) {
+              window.clearTimeout(bombFxTimerRef.current);
+            }
+            bombFxTimerRef.current = window.setTimeout(() => {
+              setBombFx(null);
+            }, 900);
+          }
+
           pushEventLog({
             kind: "play",
             text: `${seatWithName(message.seat)} 出牌 ${cards.length} 张（${message.declaredType}:${message.declaredKey}）`,
@@ -634,6 +660,7 @@ export const RoomPage = (): JSX.Element => {
           setTableAnimTick((tick) => tick + 1);
           setSeatRecentPlays({});
           setTableActions([]);
+          setBombFx(null);
           pushEventLog({
             kind: "system",
             text: `新一轮开始，${seatWithName(message.turnSeat)} 先手`
@@ -645,6 +672,7 @@ export const RoomPage = (): JSX.Element => {
           setSeatRecentPlays({});
           setTableActions([]);
           setDrawFlights([]);
+          setBombFx(null);
           pushEventLog({
             kind: "settlement",
             text: `本局结算，赢家 ${seatWithName(message.winnerSeat)}`
@@ -698,7 +726,7 @@ export const RoomPage = (): JSX.Element => {
 
   const readyDisabled = roomState?.status === "PLAYING" || roomState?.status === "DEALING";
   const passDisabled = !isMyTurn || !hasLastPlay;
-  const playDisabled = !isMyTurn || selectedCards.length === 0 || (selectedHasWildcard && (!declaredType || !declaredKey));
+  const playDisabled = !isMyTurn || selectedCards.length === 0;
   const replayDisabled = roomState?.status !== "READY" || !myPlayer || myPlayer.ready;
   const showReadyBadgeInSidebar = roomState?.status === "WAITING" || roomState?.status === "READY";
   const showReadyOnTableSeat = roomState?.status === "WAITING" || roomState?.status === "READY";
@@ -780,7 +808,7 @@ export const RoomPage = (): JSX.Element => {
       seq: Date.now(),
       cards: selectedCards
     };
-    if (selectedHasWildcard || (declaredType && declaredKey)) {
+    if (selectedHasWildcard && declaredKey) {
       payload.declaredType = declaredType;
       payload.declaredKey = declaredKey.toUpperCase();
     }
@@ -873,7 +901,7 @@ export const RoomPage = (): JSX.Element => {
         {selectedHasWildcard && (
           <div className="field-row">
             <label>
-              牌型声明
+              牌型声明（可选）
               <select value={declaredType} onChange={(e) => setDeclaredType(e.target.value)}>
                 {patternOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -883,7 +911,7 @@ export const RoomPage = (): JSX.Element => {
               </select>
             </label>
             <label>
-              关键点数
+              关键点数（可选）
               <select value={declaredKey} onChange={(e) => setDeclaredKey(e.target.value)}>
                 <option value="">请选择</option>
                 {rankOptions
@@ -962,6 +990,18 @@ export const RoomPage = (): JSX.Element => {
                 return <div key={flight.id} className="draw-flight-card" style={style} />;
               })}
             </div>
+
+            {bombFx && (
+              <div key={`bomb-${bombFx.tick}`} className="bomb-effect" aria-hidden="true">
+                <span className="bomb-flash" />
+                <span className="bomb-ripple bomb-ripple-a" />
+                <span className="bomb-ripple bomb-ripple-b" />
+                <span className="bomb-core">BOMB</span>
+                <span className="bomb-text">
+                  {seatWithName(bombFx.seat)} 炸弹 · {bombFx.key}
+                </span>
+              </div>
+            )}
 
             {seatLayout.map((seat) => {
               const player = seat.player;
