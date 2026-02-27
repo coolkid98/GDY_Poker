@@ -200,6 +200,8 @@ export const RoomPage = (): JSX.Element => {
   const [declaredKey, setDeclaredKey] = useState("");
   const [roomRef, setRoomRef] = useState<any>(null);
   const [eventLogs, setEventLogs] = useState<UiEventLog[]>([]);
+  const [mobileInfoOpen, setMobileInfoOpen] = useState(false);
+  const [mobileInfoTab, setMobileInfoTab] = useState<"logs" | "played">("logs");
 
   const [tablePlayView, setTablePlayView] = useState<UiLastPlay | null>(null);
   const [tableAnimTick, setTableAnimTick] = useState(0);
@@ -648,19 +650,41 @@ export const RoomPage = (): JSX.Element => {
   };
 
   const leaveRoom = async (): Promise<void> => {
+    setMobileInfoOpen(false);
     await leaveGameRoom();
     clearRoom();
     navigate("/", { replace: true });
   };
 
+  const openInfoPanel = (tab: "logs" | "played"): void => {
+    setMobileInfoTab(tab);
+    setMobileInfoOpen(true);
+  };
+
+  const closeInfoPanel = (): void => {
+    setMobileInfoOpen(false);
+  };
+
   return (
     <main className="page page-room">
-      <section className="panel hero-panel">
+      <button
+        type="button"
+        className={`mobile-info-backdrop ${mobileInfoOpen ? "open" : ""}`}
+        onClick={closeInfoPanel}
+        aria-label="关闭战斗信息"
+      />
+
+      <section className="panel hero-panel room-hero">
         <div className="toolbar">
           <h2>房间：{roomState?.roomId ?? "-"}</h2>
-          <button type="button" className="ghost-btn" onClick={leaveRoom}>
-            退出房间
-          </button>
+          <div className="toolbar-actions">
+            <button type="button" className="ghost-btn info-trigger-btn mobile-only" onClick={() => openInfoPanel("logs")}>
+              战斗信息
+            </button>
+            <button type="button" className="ghost-btn" onClick={leaveRoom}>
+              退出房间
+            </button>
+          </div>
         </div>
         <div className="status-row">
           <span className="status-pill">状态 {roomState?.status ?? "-"}</span>
@@ -679,10 +703,10 @@ export const RoomPage = (): JSX.Element => {
           <button type="button" className="replay-btn" disabled={replayDisabled} onClick={sendReplayReady}>
             同房间再开一把
           </button>
-          <button type="button" disabled={passDisabled} onClick={sendPass}>
+          <button type="button" className="hero-turn-btn" disabled={passDisabled} onClick={sendPass}>
             过牌
           </button>
-          <button type="button" disabled={playDisabled} onClick={sendPlay}>
+          <button type="button" className="hero-turn-btn" disabled={playDisabled} onClick={sendPlay}>
             出牌
           </button>
           <button type="button" className="ghost-btn" onClick={() => setSelectedCards([])}>
@@ -723,7 +747,7 @@ export const RoomPage = (): JSX.Element => {
         )}
       </section>
 
-      <section className="panel battle-layout">
+      <section className="panel battle-layout room-battle">
         <div className="arena-zone">
           <div className="arena-board">
             <div className="arena-table">
@@ -890,7 +914,7 @@ export const RoomPage = (): JSX.Element => {
         </aside>
       </section>
 
-      <section className="panel">
+      <section className="panel room-hand">
         <div className="hand-shortcuts">
           <div className="hand-shortcuts-info">
             <strong>手牌快捷操作</strong>
@@ -903,6 +927,9 @@ export const RoomPage = (): JSX.Element => {
             <button type="button" disabled={playDisabled} onClick={sendPlay}>
               出牌
             </button>
+            <button type="button" className="ghost-btn mobile-only" onClick={() => openInfoPanel("logs")}>
+              信息
+            </button>
           </div>
         </div>
         <HandPanel
@@ -914,9 +941,31 @@ export const RoomPage = (): JSX.Element => {
         />
       </section>
 
-      <section className="panel">
-        <h3>事件日志</h3>
-        <div className="event-layout">
+      <section className={`panel room-info ${mobileInfoOpen ? "open" : ""}`}>
+        <div className="room-info-header">
+          <h3>战斗信息</h3>
+          <div className="room-info-tabs">
+            <button
+              type="button"
+              className={`room-info-tab ${mobileInfoTab === "logs" ? "active" : ""}`}
+              onClick={() => setMobileInfoTab("logs")}
+            >
+              日志
+            </button>
+            <button
+              type="button"
+              className={`room-info-tab ${mobileInfoTab === "played" ? "active" : ""}`}
+              onClick={() => setMobileInfoTab("played")}
+            >
+              已出牌
+            </button>
+          </div>
+          <button type="button" className="ghost-btn room-info-close" onClick={closeInfoPanel}>
+            关闭
+          </button>
+        </div>
+
+        <div className={`event-layout ${mobileInfoTab === "logs" ? "tab-logs" : "tab-played"}`}>
           <div className="log-list">
             {eventLogs.map((entry) => (
               <div key={entry.id} className={`log-line ${entry.kind}`}>

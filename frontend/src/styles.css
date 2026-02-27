@@ -125,6 +125,20 @@ h4 {
   margin-bottom: 14px;
 }
 
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mobile-only {
+  display: none;
+}
+
+.mobile-info-backdrop {
+  display: none;
+}
+
 .status-row {
   display: flex;
   flex-wrap: wrap;
@@ -895,6 +909,26 @@ button:disabled {
   color: #4b2b8b;
 }
 
+.room-info-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.room-info-tabs,
+.room-info-close {
+  display: none;
+}
+
+.room-info-tab {
+  height: 30px;
+  min-width: 54px;
+  font-size: 12px;
+  padding: 0 10px;
+}
+
 .event-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
@@ -1126,101 +1160,223 @@ button:disabled {
 
 @media (max-width: 640px) {
   .page {
-    padding: 12px 8px 20px;
-    gap: 12px;
+    padding: 10px 8px 14px;
+    gap: 8px;
+  }
+
+  .page-room {
+    height: 100svh;
+    min-height: 100svh;
+    max-height: 100svh;
+    grid-template-rows: auto minmax(0, 1fr) minmax(112px, 29svh);
+    overflow: hidden;
+    padding: calc(8px + env(safe-area-inset-top)) 8px calc(8px + env(safe-area-inset-bottom));
+    gap: 8px;
+    align-content: stretch;
+  }
+
+  .page-room > .panel {
+    min-height: 0;
+  }
+
+  .room-hero {
+    padding: 10px;
+    max-height: 38svh;
+    overflow-y: auto;
   }
 
   h2 {
-    font-size: 22px;
+    font-size: 20px;
+  }
+
+  .room-hero h2 {
+    margin-bottom: 4px;
   }
 
   .toolbar {
     flex-direction: column;
     align-items: flex-start;
-    gap: 8px;
+    gap: 6px;
+    margin-bottom: 8px;
   }
 
   .toolbar .ghost-btn {
-    height: 36px;
-    min-width: 88px;
+    height: 34px;
+    min-width: 84px;
+    font-size: 14px;
+  }
+
+  .toolbar-actions {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
   }
 
   .status-row {
-    gap: 8px;
-    margin-bottom: 10px;
+    gap: 6px;
+    margin-bottom: 8px;
   }
 
   .status-pill {
-    height: 28px;
-    padding: 0 8px;
-    font-size: 12px;
+    height: 24px;
+    padding: 0 7px;
+    font-size: 11px;
+  }
+
+  .mobile-only {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .battle-layout {
-    grid-template-columns: minmax(0, 1fr) 146px;
+    grid-template-columns: minmax(0, 1fr) minmax(118px, 34vw);
     gap: 8px;
+  }
+
+  .room-battle {
+    padding: 8px;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .room-battle .arena-zone,
+  .room-battle .arena-board,
+  .room-battle .players-sidebar {
+    min-height: 0;
+    height: 100%;
+  }
+
+  .room-battle .players-sidebar {
+    overflow-y: auto;
   }
 
   .action-wrap {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
   }
 
   .action-wrap button {
     width: 100%;
     min-width: 0;
-    height: 38px;
-    font-size: 15px;
+    height: 34px;
+    font-size: 13px;
+  }
+
+  .hero-turn-btn {
+    display: none;
   }
 
   .hint-line {
-    margin-top: 8px;
-    font-size: 15px;
+    margin-top: 6px;
+    font-size: 12px;
+  }
+
+  .room-hand {
+    min-height: 0;
+    max-height: 100%;
+    height: 100%;
+    overflow: hidden;
+    padding: 8px;
+    display: grid;
+  }
+
+  .room-hand .hand-panel {
+    min-height: 0;
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .room-hand h3 {
+    font-size: 17px;
+    margin-bottom: 8px;
   }
 
   .hand-shortcuts {
+    margin-bottom: 8px;
     flex-direction: column;
     align-items: stretch;
-    gap: 8px;
+    gap: 6px;
+    padding: 7px 8px;
+  }
+
+  .hand-shortcuts-info strong {
+    font-size: 13px;
+  }
+
+  .hand-shortcuts-info span {
+    font-size: 11px;
   }
 
   .hand-shortcuts-actions {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
   }
 
   .hand-shortcuts-actions button {
     width: 100%;
     min-width: 0;
+    height: 30px;
+    font-size: 12px;
+  }
+
+  .room-hand .cards-grid {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .room-hand .cards-grid::-webkit-scrollbar {
+    height: 6px;
   }
 
   .arena-board {
-    min-height: 560px;
+    min-height: 0;
     border-radius: 14px;
   }
 
   .arena-table {
-    width: 90%;
-    height: 50%;
-    top: 53%;
-    padding: 10px 10px 12px;
+    width: 92%;
+    height: 56%;
+    top: 54%;
+    padding: 8px 10px 10px;
   }
 
   .table-stage-head h4 {
-    font-size: 18px;
+    font-size: 16px;
   }
 
   .draw-banner {
-    height: 24px;
-    padding: 0 9px;
-    font-size: 11px;
+    height: 22px;
+    padding: 0 8px;
+    font-size: 10px;
   }
 
   .table-current {
-    min-height: 84px;
+    min-height: 70px;
     padding: 8px;
+  }
+
+  .table-cards {
+    gap: 6px;
+  }
+
+  .table-card {
+    min-width: 56px;
+    min-height: 42px;
+    border-width: 1px;
+    border-radius: 8px;
+    padding: 4px 6px;
+  }
+
+  .table-card-main {
+    font-size: 20px;
   }
 
   .table-history-title {
@@ -1239,7 +1395,7 @@ button:disabled {
   }
 
   .arena-seat {
-    width: 96px;
+    width: 92px;
     padding: 4px;
   }
 
@@ -1260,6 +1416,10 @@ button:disabled {
   .arena-seat-meta {
     gap: 6px;
     font-size: 10px;
+  }
+
+  .arena-seat-meta span:first-child {
+    display: none;
   }
 
   .arena-seat-meta span:last-child {
@@ -1285,7 +1445,7 @@ button:disabled {
   }
 
   .players-sidebar h3 {
-    font-size: 17px;
+    font-size: 16px;
   }
 
   .player-side-item {
@@ -1330,12 +1490,113 @@ button:disabled {
     font-size: 18px;
   }
 
-  .card-btn {
+  .room-hand .card-btn {
     min-width: 92px;
-    min-height: 62px;
+    min-height: 60px;
+    padding: 4px;
   }
 
-  .card-main {
-    font-size: 20px;
+  .room-hand .card-main {
+    font-size: 19px;
+  }
+
+  .room-hand .card-sub {
+    font-size: 10px;
+  }
+
+  .mobile-info-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: #00000055;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease;
+    z-index: 40;
+  }
+
+  .mobile-info-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .room-info {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    top: max(72px, 12svh);
+    bottom: calc(env(safe-area-inset-bottom) + 4px);
+    z-index: 60;
+    transform: translateY(106%);
+    transition: transform 220ms ease;
+    margin: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    border-radius: 16px 16px 0 0;
+    padding: 10px;
+  }
+
+  .room-info.open {
+    transform: translateY(0);
+  }
+
+  .room-info-header {
+    margin-bottom: 8px;
+  }
+
+  .room-info-header h3 {
+    font-size: 18px;
+    margin: 0;
+  }
+
+  .room-info-tabs,
+  .room-info-close {
+    display: inline-flex;
+  }
+
+  .room-info-tabs {
+    gap: 6px;
+  }
+
+  .room-info-tab {
+    height: 28px;
+    min-width: 52px;
+    font-size: 12px;
+  }
+
+  .room-info-tab.active {
+    border-color: #2d6c5b;
+    background: linear-gradient(180deg, #2b7e67 0%, #1f6250 100%);
+    color: #fff;
+  }
+
+  .room-info-close {
+    height: 28px;
+    min-width: 52px;
+    font-size: 12px;
+  }
+
+  .room-info .event-layout {
+    min-height: 0;
+    grid-template-columns: 1fr;
+  }
+
+  .room-info .event-layout.tab-logs .played-visual-panel {
+    display: none;
+  }
+
+  .room-info .event-layout.tab-played .log-list {
+    display: none;
+  }
+
+  .room-info .log-list,
+  .room-info .played-visual-panel {
+    max-height: none;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .room-info .played-visual-grid {
+    max-height: none;
   }
 }
