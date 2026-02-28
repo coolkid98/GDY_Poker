@@ -4,10 +4,12 @@ import { RuleService } from "../engine/rule-service.js";
 import { GdyState, PlayerState } from "./schema/gdy-state.js";
 import type { Card, PassMessage, PlayCardsMessage } from "../types/game.js";
 import { RedisService } from "../services/redis-service.js";
+import { AuthService } from "../services/auth-service.js";
 
 interface JoinOptions {
-  userId?: string;
   nickname?: string;
+  authToken?: string;
+  userId?: string;
   reconnectToken?: string;
 }
 
@@ -18,6 +20,7 @@ interface ReadyMessage {
 interface RoomCreateOptions {
   maxPlayers?: number;
   redisService?: RedisService;
+  authService?: AuthService;
 }
 
 interface ReconnectSessionSnapshot {
@@ -36,6 +39,7 @@ export class GdyRoom extends Room<GdyState> {
   private readonly processedActionIds = new Set<string>();
   private readonly reconnectTokenByUserId = new Map<string, string>();
   private redisService: RedisService | null = null;
+  private authService: AuthService | null = null;
 
   onCreate(options: RoomCreateOptions): void {
     const state = new GdyState();
@@ -43,6 +47,7 @@ export class GdyRoom extends Room<GdyState> {
     this.setState(state);
 
     this.redisService = options.redisService ?? null;
+    this.authService = options.authService ?? null;
     this.maxClients = options.maxPlayers ?? this.ruleService.maxPlayers;
 
     this.onMessage("ready", (client, message: ReadyMessage) => {
@@ -87,16 +92,18 @@ export class GdyRoom extends Room<GdyState> {
   }
 
   async onJoin(client: Client, options: JoinOptions): Promise<void> {
-    const normalizedUserId = options.userId?.trim() ? options.userId.trim() : client.sessionId;
-    const restored = await this.tryRestoreDisconnectedPlayer(client, {
-      ...options,
-      userId: normalizedUserId
-    });
-    if (restored) {
-      const restoredPlayer = this.state.players.get(client.sessionId);
-      if (restoredPlayer) {
-        this.sendReconnectToken(client, restoredPlayer);
-      }
+    const authUser = await this.authService?.authenticateToken(options.authToken);
+    if (!authUser) {
+      throw new Error("UNAUTHORIZED");
+    }
+
+    const normalizedUserId = authUser.userId;
+    const incomingNickname = options.nickname?.trim() || authUser.nickname || authUser.username;
+
+    const existing = this.findPlayerByUserId(normalizedUserId);
+    if (existing) {
+      this.bindPlayerSession(existing.sessionId, existing.player, client, incomingNickname);
+      this.sendReconnectToken(client, existing.player);
       this.syncRoomStatus();
       this.persistRoomSnapshot();
       return;
@@ -104,14 +111,6 @@ export class GdyRoom extends Room<GdyState> {
 
     if (this.state.status === "PLAYING" || this.state.status === "DEALING") {
       throw new Error("GAME_IN_PROGRESS");
-    }
-
-    const existing = this.findPlayerByUserId(normalizedUserId);
-    if (existing && existing.player.connected) {
-      throw new Error("USER_ALREADY_CONNECTED");
-    }
-    if (existing && !existing.player.connected) {
-      this.removePlayer(existing.sessionId);
     }
 
     const seat = this.nextSeat();
@@ -122,7 +121,7 @@ export class GdyRoom extends Room<GdyState> {
     const player = new PlayerState();
     player.sessionId = client.sessionId;
     player.userId = normalizedUserId;
-    player.nickname = options.nickname ?? `Player-${seat + 1}`;
+    player.nickname = incomingNickname || `Player-${seat + 1}`;
     player.seat = seat;
     player.connected = true;
 
@@ -414,42 +413,10 @@ export class GdyRoom extends Room<GdyState> {
     return null;
   }
 
-  private async tryRestoreDisconnectedPlayer(client: Client, options: JoinOptions): Promise<boolean> {
-    const userId = options.userId?.trim();
-    const reconnectToken = options.reconnectToken?.trim();
-    if (!userId || !reconnectToken) {
-      return false;
-    }
-
-    const existing = this.findPlayerByUserId(userId);
-    if (!existing) {
-      return false;
-    }
-
-    let expectedToken = this.reconnectTokenByUserId.get(userId);
-    if (!expectedToken && this.redisService?.isEnabled()) {
-      try {
-        const snapshot = await this.redisService.getReconnectSession<ReconnectSessionSnapshot>(this.roomId, userId);
-        if (snapshot?.token) {
-          expectedToken = snapshot.token;
-          this.reconnectTokenByUserId.set(userId, snapshot.token);
-        }
-      } catch {
-        expectedToken = undefined;
-      }
-    }
-
-    if (!expectedToken || expectedToken !== reconnectToken) {
-      return false;
-    }
-
-    const oldSessionId = existing.sessionId;
-    const player = existing.player;
+  private bindPlayerSession(oldSessionId: string, player: PlayerState, client: Client, nickname: string): void {
     player.sessionId = client.sessionId;
     player.connected = true;
-    if (options.nickname?.trim()) {
-      player.nickname = options.nickname.trim();
-    }
+    player.nickname = nickname;
 
     if (oldSessionId !== client.sessionId) {
       this.state.players.delete(oldSessionId);
@@ -473,9 +440,6 @@ export class GdyRoom extends Room<GdyState> {
       player.handCount = hand.length;
       client.send("hand_sync", { cards: hand });
     }
-
-    await this.persistReconnectSession(player);
-    return true;
   }
 
   private issueReconnectToken(userId: string): string {

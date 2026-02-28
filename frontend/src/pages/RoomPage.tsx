@@ -11,6 +11,7 @@ import {
   stopGameBackgroundMusic,
   unlockGameAudio
 } from "../audio/game-audio";
+import { getAuthSession } from "../network/auth-client";
 import { joinGameRoom, leaveGameRoom } from "../network/colyseus-client";
 import { normalizePlayers, useGameStore } from "../store/use-game-store";
 import type { UiLastPlay, UiPlayer } from "../types/game-state";
@@ -353,8 +354,19 @@ export const RoomPage = (): JSX.Element => {
   const bombFxTimerRef = useRef<number | null>(null);
   const winnerFxTimerRef = useRef<number | null>(null);
 
-  const { nickname, sessionId, roomState, hand, setConnected, setRoomMeta, setHand, setRoomState, appendLog, clearRoom } =
-    useGameStore();
+  const {
+    nickname,
+    sessionId,
+    roomState,
+    hand,
+    setNickname: setStoreNickname,
+    setConnected,
+    setRoomMeta,
+    setHand,
+    setRoomState,
+    appendLog,
+    clearRoom
+  } = useGameStore();
 
   const primeAudioByGesture = useCallback((): void => {
     if (!audioEnabled || !audioGestureArmedRef.current) {
@@ -561,8 +573,22 @@ export const RoomPage = (): JSX.Element => {
 
     let mounted = true;
     let joinedRoom: any = null;
+    const authSession = getAuthSession();
+    if (!authSession) {
+      pushEventLog({
+        kind: "error",
+        text: "未登录，请先返回大厅登录"
+      });
+      navigate("/", { replace: true });
+      return;
+    }
 
-    joinGameRoom(nickname)
+    const joinNickname = (nickname || authSession.user.nickname || authSession.user.username).trim();
+    if (!nickname && joinNickname) {
+      setStoreNickname(joinNickname);
+    }
+
+    joinGameRoom(joinNickname)
       .then((room) => {
         if (!mounted) {
           void room.leave();
@@ -861,7 +887,7 @@ export const RoomPage = (): JSX.Element => {
         void leaveGameRoom({ preserveReconnect: true });
       }
     };
-  }, [navigate, nickname, pushEventLog, resolveSeatName, seatWithName, setConnected, setHand, setRoomMeta, setRoomState]);
+  }, [navigate, nickname, pushEventLog, resolveSeatName, seatWithName, setConnected, setHand, setRoomMeta, setRoomState, setStoreNickname]);
 
   const myPlayer = useMemo(() => {
     if (!roomState) {

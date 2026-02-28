@@ -1,9 +1,9 @@
 import { Client, Room } from "colyseus.js";
+import { getAuthSession } from "./auth-client";
 
 let client: Client | null = null;
 let room: Room | null = null;
 
-const USER_ID_STORAGE_KEY = "gdy:user-id";
 const RECONNECT_META_STORAGE_KEY = "gdy:reconnect-meta";
 
 interface ReconnectMeta {
@@ -25,28 +25,6 @@ const safeParseJson = <T>(input: string | null): T | null => {
   } catch {
     return null;
   }
-};
-
-const createClientActionId = (): string => {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  return `u-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-};
-
-const resolveUserId = (): string => {
-  if (typeof window === "undefined") {
-    return createClientActionId();
-  }
-
-  const fromSession = window.sessionStorage.getItem(USER_ID_STORAGE_KEY);
-  if (fromSession) {
-    return fromSession;
-  }
-
-  const nextUserId = createClientActionId();
-  window.sessionStorage.setItem(USER_ID_STORAGE_KEY, nextUserId);
-  return nextUserId;
 };
 
 const loadReconnectMeta = (): ReconnectMeta | null => {
@@ -91,25 +69,30 @@ const bindReconnectTokenListener = (nextRoom: Room, userId: string): void => {
   });
 };
 
-const tryReconnectRoom = async (nickname: string, userId: string): Promise<Room | null> => {
+const tryReconnectRoom = async (input: {
+  nickname: string;
+  userId: string;
+  authToken: string;
+}): Promise<Room | null> => {
   if (!client) {
     return null;
   }
 
   const reconnectMeta = loadReconnectMeta();
-  if (!reconnectMeta || !reconnectMeta.roomId || !reconnectMeta.reconnectToken) {
+  if (!reconnectMeta?.roomId || !reconnectMeta.reconnectToken) {
     return null;
   }
 
-  if (reconnectMeta.userId !== userId) {
+  if (reconnectMeta.userId !== input.userId) {
     clearReconnectMeta();
     return null;
   }
 
   try {
     return await client.joinById(reconnectMeta.roomId, {
-      nickname,
-      userId,
+      nickname: input.nickname,
+      userId: input.userId,
+      authToken: input.authToken,
       reconnectToken: reconnectMeta.reconnectToken
     });
   } catch {
@@ -158,11 +141,27 @@ export const joinGameRoom = async (nickname: string): Promise<Room> => {
     client = new Client(endpoint);
   }
 
-  const userId = resolveUserId();
-  room = await tryReconnectRoom(nickname, userId);
+  const authSession = getAuthSession();
+  if (!authSession?.token || !authSession.user?.userId) {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  const resolvedNickname = nickname.trim() || authSession.user.nickname || authSession.user.username;
+  const userId = authSession.user.userId;
+  const authToken = authSession.token;
+
+  room = await tryReconnectRoom({
+    nickname: resolvedNickname,
+    userId,
+    authToken
+  });
 
   if (!room) {
-    room = await client.joinOrCreate("gdy_room", { nickname, userId });
+    room = await client.joinOrCreate("gdy_room", {
+      nickname: resolvedNickname,
+      userId,
+      authToken
+    });
   }
 
   bindReconnectTokenListener(room, userId);
@@ -179,8 +178,10 @@ export const leaveGameRoom = async (options?: { preserveReconnect?: boolean }): 
     }
     return;
   }
+
   await room.leave();
   room = null;
+
   if (!options?.preserveReconnect) {
     clearReconnectMeta();
   }

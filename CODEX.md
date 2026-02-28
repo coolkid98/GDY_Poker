@@ -619,12 +619,41 @@
    5. 构建验证：
       1. `backend npm run build` 通过
       2. `frontend npm run build` 通过
+54. 账号体系 MVP（注册/登录 + 房间鉴权 + 同账号续局，2026-02-28）：
+   1. 后端新增鉴权服务（`backend/src/services/auth-service.ts`）：
+      1. 基于 `bcryptjs` 做密码哈希与登录校验
+      2. 基于 `jsonwebtoken` 生成 30 天登录令牌
+      3. 错误统一为 `AuthError(status/code/message)`
+   2. Redis 用户存储接入（`backend/src/services/redis-service.ts`）：
+      1. 新增 `createAuthUserByUsername`（用户名唯一约束）
+      2. 新增 `getAuthUserByUsername` / `set/getAuthUserById`
+      3. Redis 不可用时回退进程内内存存储（仅开发兜底）
+   3. 后端 API 新增（`backend/src/index.ts`）：
+      1. `POST /auth/register`：注册并返回 `token + user`
+      2. `POST /auth/login`：登录并返回 `token + user`
+      3. `healthz` 增加 `auth: true`
+   4. 房间鉴权与续局（`backend/src/rooms/gdy-room.ts`）：
+      1. `onJoin` 改为强制校验 `authToken`
+      2. 同一 `userId` 再次入房时，执行会话接管（替换 sessionId、迁移手牌、踢掉旧连接）
+      3. 对局中同账号可直接继续当前座位和牌局，不再因 `USER_ALREADY_CONNECTED` 拒绝
+   5. 前端登录流程（`frontend/src/network/auth-client.ts` + `frontend/src/pages/LobbyPage.tsx`）：
+      1. 新增登录/注册页面交互（大厅页内）
+      2. 本地持久化 `auth-session`（token + user）
+      3. 登录后才能进入房间，未登录访问 `/room` 会回大厅
+   6. 前端入房鉴权透传（`frontend/src/network/colyseus-client.ts` + `frontend/src/pages/RoomPage.tsx`）：
+      1. `joinOrCreate/joinById` 统一携带 `authToken`
+      2. 保留重连元数据逻辑，与账号会话接管兼容
+      3. 直接刷新/重进时自动使用登录态昵称入房
+   7. 构建验证：
+      1. `backend npm run build` 通过
+      2. `frontend npm run build` 通过
 
 ## 10. 当前未完成项（必须继续）
 
 1. Redis 已完成“快照 + 重连 + 幂等”，但排行榜与统计缓存尚未接入。
 2. PostgreSQL 尚未接入（`users`/`matches`/`match_players`/`match_events`）。
 3. 托管超时策略尚未接入定时器执行。
+4. 账号体系目前未做找回密码、改密、封禁、异地登录策略等进阶安全能力。
 
 ## 11. 关键实现约定（防遗忘）
 
@@ -634,7 +663,10 @@
 4. 断线重连：
    1. Colyseus `allowReconnection` 保留窗口：`30s`
    2. 另支持 `userId + reconnectToken` 的显式重连恢复（用于刷新页/新连接）
-5. 赖子相关当前协议约定：
+5. 房间准入：
+   1. 当前版本要求 `authToken` 才能进入房间
+   2. 同账号重复进入采用“会话接管”而非新增座位
+6. 赖子相关当前协议约定：
    1. `play_cards` 仍支持 `declaredType`、`declaredKey` 字段（可选）
    2. 后端已支持“无声明自动定型”；有声明时以声明为准
    3. 前端仅在用户填写 `declaredKey` 时发送声明字段
@@ -644,4 +676,5 @@
 1. 引入回合超时与托管自动出牌。
 2. 基于 Redis 增加排行榜/统计缓存（按日/周榜）。
 3. 对接 PostgreSQL 战绩落库与事件流。
-4. 补充赖子出牌的前端智能提示（可选声明建议、可压提示）。
+4. 增加账号安全能力（改密、登出所有设备、登录风控）。
+5. 补充赖子出牌的前端智能提示（可选声明建议、可压提示）。

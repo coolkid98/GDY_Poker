@@ -16,6 +16,14 @@ export class RedisService {
     return `gdy:room:${roomId}:action:${actionId}`;
   }
 
+  private authUserByNameKey(username: string): string {
+    return `gdy:auth:user:name:${username}`;
+  }
+
+  private authUserByIdKey(userId: string): string {
+    return `gdy:auth:user:id:${userId}`;
+  }
+
   async connect(redisUrl: string): Promise<void> {
     if (!redisUrl) {
       return;
@@ -103,6 +111,55 @@ export class RedisService {
 
     const result = await this.client.set(this.roomActionKey(roomId, actionId), "1", "EX", ttlSeconds, "NX");
     return result === "OK";
+  }
+
+  async createAuthUserByUsername(username: string, payload: unknown): Promise<boolean> {
+    if (!this.client) {
+      return false;
+    }
+    const result = await this.client.set(this.authUserByNameKey(username), JSON.stringify(payload), "NX");
+    return result === "OK";
+  }
+
+  async getAuthUserByUsername<T>(username: string): Promise<T | null> {
+    if (!this.client) {
+      return null;
+    }
+
+    const payload = await this.client.get(this.authUserByNameKey(username));
+    if (!payload) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(payload) as T;
+    } catch {
+      return null;
+    }
+  }
+
+  async setAuthUserById(userId: string, payload: unknown): Promise<void> {
+    if (!this.client) {
+      return;
+    }
+    await this.client.set(this.authUserByIdKey(userId), JSON.stringify(payload));
+  }
+
+  async getAuthUserById<T>(userId: string): Promise<T | null> {
+    if (!this.client) {
+      return null;
+    }
+
+    const payload = await this.client.get(this.authUserByIdKey(userId));
+    if (!payload) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(payload) as T;
+    } catch {
+      return null;
+    }
   }
 
   async disconnect(): Promise<void> {
