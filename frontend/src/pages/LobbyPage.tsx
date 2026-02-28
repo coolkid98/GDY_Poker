@@ -1,5 +1,6 @@
 import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getAudioEnabledPreference, startGameBackgroundMusic, unlockGameAudio } from "../audio/game-audio";
 import { useGameStore } from "../store/use-game-store";
 import { getEndpoint } from "../network/colyseus-client";
 
@@ -13,6 +14,13 @@ export const LobbyPage = (): JSX.Element => {
     const finalNickname = nickname.trim();
     if (!finalNickname) {
       return;
+    }
+    if (getAudioEnabledPreference()) {
+      void unlockGameAudio().then((ok) => {
+        if (ok) {
+          startGameBackgroundMusic();
+        }
+      });
     }
     setNickname(finalNickname);
     navigate("/room");

@@ -524,6 +524,39 @@
    4. 结果：
       1. Vite 不再出现动态导入分析告警
       2. 本地 `tone` 依赖可被正常预构建并在前台生效
+46. 背景音乐切 Tone + 进房即播放（2026-02-28）：
+   1. 背景音乐实现改为 Tone（`frontend/src/audio/game-audio.ts`）：
+      1. 新增 Tone 背景音乐轨道：Pad / Bass / Lead / Hat
+      2. 使用 `Tone.Loop + Tone.Transport` 驱动循环节拍
+      3. 启动逻辑改为 Tone 优先，保留旧 WebAudio 定时器作为兜底
+   2. “进入房间即听到音乐”处理（`frontend/src/pages/LobbyPage.tsx`）：
+      1. 点击“进入房间”时先执行 `unlockGameAudio()`（绑定用户手势）
+      2. 音频开关为开启时，立即触发 `startGameBackgroundMusic()`
+      3. 进入 Room 页面后无需等待“全员准备/开局”即可有 BGM
+47. BGM 欢快风格优化（2026-02-28）：
+   1. Tone 背景音乐重新编排（`frontend/src/audio/game-audio.ts`）：
+      1. 速度上调：`BPM 104 -> 126`
+      2. 和弦进行改为更明亮的 `Cmaj7 -> G7 -> Am7 -> Fmaj7`
+      3. Lead 改为更跳跃的分段旋律（8 分音符步进）
+      4. Bass 改为“主拍根音 + 反拍五度”增强律动
+      5. Hat 改为 offbeat 强拍并增加细分补点，听感更活泼
+   2. 音色参数调亮：
+      1. Pad：`triangle -> sawtooth`，缩短释放，减少拖尾
+      2. Lead：更快攻击与更短释放，增强颗粒感
+      3. Bus 滤波截止上调，混响衰减与湿度下调，整体更清爽
+48. BGM 改为“可爱/电子/街机”风格（2026-02-28）：
+   1. Tone 背景音色重构（`frontend/src/audio/game-audio.ts`）：
+      1. 新增 `Chorus + BitCrusher`，加入轻微 8-bit 颗粒感
+      2. Pad/Bass/Lead 统一偏方波系音色（更街机）
+      3. 新增独立 `Arp` 轨道，提升电子感与可爱跳跃感
+   2. 编排重构：
+      1. BPM 上调到 `132`
+      2. 和弦改为大三和弦主循环（C / G / Am / F）
+      3. 16 步循环中加入高音琶音与反拍主旋律 Hook
+      4. Bass 改为根音/八度切换，Hat 保留反拍并轻补点
+   3. 听感目标：
+      1. 减少“过于欢快偏流行”的感觉
+      2. 强化“可爱 + 电子 + 街机”氛围
 
 ## 10. 当前未完成项（必须继续）
 

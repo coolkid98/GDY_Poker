@@ -46,6 +46,24 @@ class GameAudioEngine {
 
   private toneDrawPing: any | null = null;
 
+  private toneBgmBus: any | null = null;
+
+  private toneBgmPad: any | null = null;
+
+  private toneBgmBass: any | null = null;
+
+  private toneBgmLead: any | null = null;
+
+  private toneBgmArp: any | null = null;
+
+  private toneBgmHat: any | null = null;
+
+  private toneBgmLoop: any | null = null;
+
+  private toneBgmStep = 0;
+
+  private toneBgmRunning = false;
+
   private getAudioCtor(): AudioCtor | null {
     if (typeof window === "undefined") {
       return null;
@@ -339,6 +357,90 @@ class GameAudioEngine {
         }
       }).connect(fxBus);
 
+      this.toneBgmBus = new Tone.Gain(0.17).toDestination();
+      const bgmFilter = new Tone.Filter(5400, "lowpass");
+      const bgmReverb = new Tone.Reverb({
+        decay: 0.85,
+        wet: 0.09
+      });
+      const bgmChorus = new Tone.Chorus({
+        frequency: 2.4,
+        delayTime: 2.2,
+        depth: 0.32,
+        wet: 0.26
+      }).start();
+      const bgmCrusher = new Tone.BitCrusher(6);
+      bgmCrusher.wet.value = 0.16;
+      bgmReverb.chain(bgmChorus, bgmFilter, bgmCrusher, this.toneBgmBus);
+
+      this.toneBgmPad = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "square" },
+        envelope: {
+          attack: 0.004,
+          decay: 0.08,
+          sustain: 0.26,
+          release: 0.24
+        }
+      }).connect(bgmReverb);
+
+      this.toneBgmBass = new Tone.MonoSynth({
+        oscillator: { type: "square" },
+        filter: {
+          Q: 1.4,
+          type: "lowpass",
+          rolloff: -24
+        },
+        envelope: {
+          attack: 0.002,
+          decay: 0.085,
+          sustain: 0.11,
+          release: 0.06
+        },
+        filterEnvelope: {
+          attack: 0.002,
+          decay: 0.09,
+          sustain: 0.09,
+          release: 0.06,
+          baseFrequency: 95,
+          octaves: 3.2
+        }
+      }).connect(this.toneBgmBus);
+
+      this.toneBgmLead = new Tone.Synth({
+        oscillator: { type: "square" },
+        envelope: {
+          attack: 0.001,
+          decay: 0.07,
+          sustain: 0.02,
+          release: 0.032
+        }
+      }).connect(this.toneBgmBus);
+
+      this.toneBgmArp = new Tone.Synth({
+        oscillator: { type: "triangle" },
+        envelope: {
+          attack: 0.001,
+          decay: 0.045,
+          sustain: 0,
+          release: 0.02
+        }
+      }).connect(this.toneBgmBus);
+
+      this.toneBgmHat = new Tone.NoiseSynth({
+        noise: { type: "pink" },
+        envelope: {
+          attack: 0.001,
+          decay: 0.045,
+          sustain: 0,
+          release: 0.02
+        }
+      }).connect(this.toneBgmBus);
+
+      this.toneBgmLoop = new Tone.Loop((time: number) => {
+        this.tickToneBgm(time);
+      }, "8n");
+      Tone.Transport.bpm.value = 132;
+
       this.toneModule = Tone;
       this.toneFxBus = fxBus;
       this.toneReady = true;
@@ -391,6 +493,97 @@ class GameAudioEngine {
     } catch {
       return false;
     }
+  }
+
+  private midiToToneNote(midi: number): string {
+    return Tone.Frequency(midi, "midi").toNote();
+  }
+
+  private tickToneBgm(time: number): void {
+    if (!this.enabled || !this.toneReady) {
+      return;
+    }
+
+    const progression = [
+      { bass: 48, chord: [60, 64, 67], arp: [72, 76, 79, 76, 84, 79, 76, 72], hook: [79, 81, 83, 86] }, // C
+      { bass: 55, chord: [67, 71, 74], arp: [74, 79, 83, 79, 86, 83, 79, 74], hook: [83, 86, 88, 91] }, // G
+      { bass: 57, chord: [69, 72, 76], arp: [76, 81, 84, 81, 88, 84, 81, 76], hook: [84, 88, 91, 88] }, // Am
+      { bass: 53, chord: [65, 69, 72], arp: [72, 77, 81, 77, 84, 81, 77, 72], hook: [81, 84, 86, 88] } // F
+    ];
+    const step = this.toneBgmStep % 32;
+    const section = progression[Math.floor(step / 8) % progression.length] ?? progression[0];
+    const beatInSection = step % 8;
+    const halfBeat = beatInSection % 2;
+
+    if ((beatInSection === 0 || beatInSection === 4) && this.toneBgmPad) {
+      const chord = section.chord.map((midi) => this.midiToToneNote(midi));
+      this.toneBgmPad.triggerAttackRelease(chord, "4n", time, beatInSection === 0 ? 0.19 : 0.15);
+    }
+
+    if (this.toneBgmBass) {
+      const bassMidi = halfBeat === 0 ? section.bass : section.bass + 12;
+      const bassVelocity = halfBeat === 0 ? 0.36 : 0.22;
+      this.toneBgmBass.triggerAttackRelease(this.midiToToneNote(bassMidi), "16n", time, bassVelocity);
+    }
+
+    if (this.toneBgmArp) {
+      const arpMidi = section.arp[beatInSection] ?? section.arp[0];
+      this.toneBgmArp.triggerAttackRelease(this.midiToToneNote(arpMidi), "16n", time + 0.002, 0.17);
+    }
+
+    if (this.toneBgmLead && (beatInSection === 1 || beatInSection === 3 || beatInSection === 5 || beatInSection === 7)) {
+      const hookIdx = Math.floor(beatInSection / 2);
+      const hookMidi = section.hook[hookIdx] ?? section.hook[0];
+      this.toneBgmLead.triggerAttackRelease(this.midiToToneNote(hookMidi), "16n", time + 0.006, 0.2);
+    }
+
+    if (this.toneBgmHat) {
+      const offbeat = halfBeat === 1;
+      this.toneBgmHat.triggerAttackRelease("32n", time + 0.01, offbeat ? 0.12 : 0.045);
+      if (offbeat && beatInSection !== 7) {
+        this.toneBgmHat.triggerAttackRelease("64n", time + 0.088, 0.055);
+      }
+    }
+
+    this.toneBgmStep += 1;
+  }
+
+  private startToneBackgroundMusic(): boolean {
+    if (!this.enabled || !this.toneReady || !this.toneBgmLoop) {
+      return false;
+    }
+
+    if (Tone.context.state !== "running") {
+      return false;
+    }
+
+    if (this.toneBgmRunning) {
+      return true;
+    }
+
+    try {
+      this.toneBgmStep = 0;
+      this.toneBgmLoop.start(0);
+      if (Tone.Transport.state !== "started") {
+        Tone.Transport.start("+0.02");
+      }
+      this.toneBgmRunning = true;
+      return true;
+    } catch {
+      this.toneBgmRunning = false;
+      return false;
+    }
+  }
+
+  private stopToneBackgroundMusic(): void {
+    if (this.toneBgmLoop) {
+      this.toneBgmLoop.stop(0);
+    }
+    if (this.toneBgmRunning && Tone.Transport.state === "started") {
+      Tone.Transport.stop();
+      Tone.Transport.cancel(0);
+    }
+    this.toneBgmRunning = false;
   }
 
   private tickBgm(): void {
@@ -468,7 +661,19 @@ class GameAudioEngine {
   }
 
   startBackgroundMusic(): void {
-    if (!this.enabled || this.bgmTimer !== null) {
+    if (!this.enabled) {
+      return;
+    }
+    const toneReady = this.ensureToneReady();
+    if (toneReady && this.startToneBackgroundMusic()) {
+      if (this.bgmTimer !== null) {
+        window.clearInterval(this.bgmTimer);
+        this.bgmTimer = null;
+      }
+      return;
+    }
+
+    if (this.bgmTimer !== null) {
       return;
     }
     this.bgmStep = 0;
@@ -479,6 +684,7 @@ class GameAudioEngine {
   }
 
   stopBackgroundMusic(): void {
+    this.stopToneBackgroundMusic();
     if (this.bgmTimer !== null) {
       window.clearInterval(this.bgmTimer);
       this.bgmTimer = null;
