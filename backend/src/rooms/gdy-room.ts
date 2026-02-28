@@ -32,12 +32,15 @@ interface ReconnectSessionSnapshot {
   updatedAt: number;
 }
 
+const IN_GAME_LEAVE_GRACE_MS = 120_000;
+
 export class GdyRoom extends Room<GdyState> {
   private readonly ruleService = new RuleService();
   private readonly playerHands = new Map<string, string[]>();
   private deck: Card[] = [];
   private readonly processedActionIds = new Set<string>();
   private readonly reconnectTokenByUserId = new Map<string, string>();
+  private readonly leaveGraceTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private redisService: RedisService | null = null;
   private authService: AuthService | null = null;
 
@@ -141,34 +144,53 @@ export class GdyRoom extends Room<GdyState> {
     }
 
     player.connected = false;
+    const inGame = this.isGameInProgress();
+    if (inGame) {
+      this.handlePlayerDisconnectedDuringGame(player.seat);
+    }
+
+    await this.persistReconnectSession(player);
+    this.persistRoomSnapshot();
 
     if (consented) {
+      if (inGame) {
+        this.scheduleLeaveGrace(player.userId, client.sessionId);
+        this.syncRoomStatus();
+        this.persistRoomSnapshot();
+        return;
+      }
+
       this.removePlayer(client.sessionId);
       this.syncRoomStatus();
       this.persistRoomSnapshot();
       return;
     }
 
-    await this.persistReconnectSession(player);
-    this.persistRoomSnapshot();
+    if (inGame) {
+      this.scheduleLeaveGrace(player.userId, client.sessionId);
+    }
 
     try {
       await this.allowReconnection(client, 30);
       const rejoined = this.state.players.get(client.sessionId);
       if (rejoined) {
         rejoined.connected = true;
+        this.clearLeaveGrace(rejoined.userId);
         await this.persistReconnectSession(rejoined);
       } else {
         const byUserId = this.findPlayerByUserId(player.userId);
         if (byUserId?.player.connected) {
+          this.clearLeaveGrace(byUserId.player.userId);
           await this.persistReconnectSession(byUserId.player);
         }
       }
     } catch {
       const stillBound = this.state.players.get(client.sessionId);
       if (stillBound && !stillBound.connected) {
-        await this.clearReconnectSession(stillBound.userId);
-        this.removePlayer(client.sessionId);
+        if (!inGame) {
+          await this.clearReconnectSession(stillBound.userId);
+          this.removePlayer(client.sessionId);
+        }
       }
     }
 
@@ -181,6 +203,10 @@ export class GdyRoom extends Room<GdyState> {
       void this.clearReconnectSession(player.userId);
     }
     this.reconnectTokenByUserId.clear();
+    for (const timerId of this.leaveGraceTimers.values()) {
+      clearTimeout(timerId);
+    }
+    this.leaveGraceTimers.clear();
     void this.redisService?.clearRoomSnapshot(this.roomId);
     this.playerHands.clear();
     this.deck = [];
@@ -414,6 +440,7 @@ export class GdyRoom extends Room<GdyState> {
   }
 
   private bindPlayerSession(oldSessionId: string, player: PlayerState, client: Client, nickname: string): void {
+    this.clearLeaveGrace(player.userId);
     player.sessionId = client.sessionId;
     player.connected = true;
     player.nickname = nickname;
@@ -680,6 +707,14 @@ export class GdyRoom extends Room<GdyState> {
 
   private activePlayers(): PlayerState[] {
     const players = [...this.state.players.values()];
+    const connected = players.filter((p) => p.connected);
+    const connectedPlaying = connected.filter((p) => p.handCount > 0);
+    if (connectedPlaying.length > 0) {
+      return connectedPlaying;
+    }
+    if (connected.length > 0) {
+      return connected;
+    }
     const playing = players.filter((p) => p.handCount > 0);
     return playing.length > 0 ? playing : players;
   }
@@ -734,6 +769,7 @@ export class GdyRoom extends Room<GdyState> {
     }
 
     if (removed) {
+      this.clearLeaveGrace(removed.userId);
       this.reconnectTokenByUserId.delete(removed.userId);
       void this.clearReconnectSession(removed.userId);
     }
@@ -757,5 +793,46 @@ export class GdyRoom extends Room<GdyState> {
     if (this.state.status === "WAITING") {
       this.state.status = "READY";
     }
+  }
+
+  private isGameInProgress(): boolean {
+    return this.state.status === "PLAYING" || this.state.status === "DEALING";
+  }
+
+  private handlePlayerDisconnectedDuringGame(seat: number): void {
+    if (this.state.turnSeat !== seat) {
+      return;
+    }
+
+    const nextSeat = this.nextActiveSeat(seat);
+    if (nextSeat >= 0 && nextSeat !== seat) {
+      this.state.turnSeat = nextSeat;
+    }
+  }
+
+  private scheduleLeaveGrace(userId: string, sessionId: string): void {
+    this.clearLeaveGrace(userId);
+    const timerId = setTimeout(() => {
+      const existing = this.findPlayerByUserId(userId);
+      if (!existing) {
+        return;
+      }
+      if (existing.sessionId !== sessionId || existing.player.connected) {
+        return;
+      }
+      this.removePlayer(existing.sessionId);
+      this.syncRoomStatus();
+      this.persistRoomSnapshot();
+    }, IN_GAME_LEAVE_GRACE_MS);
+    this.leaveGraceTimers.set(userId, timerId);
+  }
+
+  private clearLeaveGrace(userId: string): void {
+    const timerId = this.leaveGraceTimers.get(userId);
+    if (!timerId) {
+      return;
+    }
+    clearTimeout(timerId);
+    this.leaveGraceTimers.delete(userId);
   }
 }

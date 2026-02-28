@@ -647,6 +647,21 @@
    7. 构建验证：
       1. `backend npm run build` 通过
       2. `frontend npm run build` 通过
+55. 修复“对局中退出后无法再进入”（2026-02-28）：
+   1. 问题根因（`backend/src/rooms/gdy-room.ts`）：
+      1. 用户点击“退出房间”属于 `consented=true` 离开
+      2. 旧逻辑会在 `onLeave` 里立即 `removePlayer`
+      3. 若房间仍处于 `PLAYING/DEALING`，该用户再次进入时因不再有原座位而命中 `GAME_IN_PROGRESS`
+   2. 修复策略：
+      1. 对局进行中（`PLAYING/DEALING`）的主动退出改为“离线保座”，不立即移除玩家
+      2. 新增离线保留窗口 `IN_GAME_LEAVE_GRACE_MS=120000`（2 分钟）
+      3. 保留窗口内同账号重进时，执行会话接管并清理离线计时器
+      4. 超过窗口仍未重进则自动移除该玩家，避免僵尸座位长期占用
+   3. 防卡回合处理：
+      1. 若离线玩家正好是当前回合出牌位，自动切到下一位在线玩家
+      2. `activePlayers` 优先使用在线玩家，减少因离线导致的回合停滞
+   4. 验证：
+      1. `backend npm run build` 通过
 
 ## 10. 当前未完成项（必须继续）
 
