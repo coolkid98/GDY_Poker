@@ -357,52 +357,52 @@ class GameAudioEngine {
         }
       }).connect(fxBus);
 
-      this.toneBgmBus = new Tone.Gain(0.17).toDestination();
-      const bgmFilter = new Tone.Filter(5400, "lowpass");
+      this.toneBgmBus = new Tone.Gain(0.05).toDestination();
+      const bgmFilter = new Tone.Filter(6200, "lowpass");
       const bgmReverb = new Tone.Reverb({
-        decay: 0.85,
-        wet: 0.09
+        decay: 0.72,
+        wet: 0.06
       });
       const bgmChorus = new Tone.Chorus({
-        frequency: 2.4,
-        delayTime: 2.2,
-        depth: 0.32,
-        wet: 0.26
+        frequency: 2.1,
+        delayTime: 1.9,
+        depth: 0.18,
+        wet: 0.14
       }).start();
-      const bgmCrusher = new Tone.BitCrusher(6);
-      bgmCrusher.wet.value = 0.16;
+      const bgmCrusher = new Tone.BitCrusher(7);
+      bgmCrusher.wet.value = 0.1;
       bgmReverb.chain(bgmChorus, bgmFilter, bgmCrusher, this.toneBgmBus);
 
       this.toneBgmPad = new Tone.PolySynth(Tone.Synth, {
-        oscillator: { type: "square" },
+        oscillator: { type: "triangle" },
         envelope: {
-          attack: 0.004,
-          decay: 0.08,
-          sustain: 0.26,
-          release: 0.24
+          attack: 0.006,
+          decay: 0.09,
+          sustain: 0.22,
+          release: 0.2
         }
       }).connect(bgmReverb);
 
       this.toneBgmBass = new Tone.MonoSynth({
-        oscillator: { type: "square" },
+        oscillator: { type: "triangle" },
         filter: {
-          Q: 1.4,
+          Q: 1.2,
           type: "lowpass",
           rolloff: -24
         },
         envelope: {
           attack: 0.002,
-          decay: 0.085,
-          sustain: 0.11,
+          decay: 0.08,
+          sustain: 0.1,
           release: 0.06
         },
         filterEnvelope: {
           attack: 0.002,
-          decay: 0.09,
-          sustain: 0.09,
+          decay: 0.08,
+          sustain: 0.08,
           release: 0.06,
-          baseFrequency: 95,
-          octaves: 3.2
+          baseFrequency: 88,
+          octaves: 2.8
         }
       }).connect(this.toneBgmBus);
 
@@ -410,19 +410,19 @@ class GameAudioEngine {
         oscillator: { type: "square" },
         envelope: {
           attack: 0.001,
-          decay: 0.07,
-          sustain: 0.02,
-          release: 0.032
+          decay: 0.055,
+          sustain: 0.01,
+          release: 0.025
         }
       }).connect(this.toneBgmBus);
 
       this.toneBgmArp = new Tone.Synth({
-        oscillator: { type: "triangle" },
+        oscillator: { type: "square" },
         envelope: {
           attack: 0.001,
-          decay: 0.045,
+          decay: 0.035,
           sustain: 0,
-          release: 0.02
+          release: 0.016
         }
       }).connect(this.toneBgmBus);
 
@@ -438,8 +438,8 @@ class GameAudioEngine {
 
       this.toneBgmLoop = new Tone.Loop((time: number) => {
         this.tickToneBgm(time);
-      }, "8n");
-      Tone.Transport.bpm.value = 132;
+      }, "11n");
+      Tone.Transport.bpm.value = 65;
 
       this.toneModule = Tone;
       this.toneFxBus = fxBus;
@@ -505,43 +505,67 @@ class GameAudioEngine {
     }
 
     const progression = [
-      { bass: 48, chord: [60, 64, 67], arp: [72, 76, 79, 76, 84, 79, 76, 72], hook: [79, 81, 83, 86] }, // C
-      { bass: 55, chord: [67, 71, 74], arp: [74, 79, 83, 79, 86, 83, 79, 74], hook: [83, 86, 88, 91] }, // G
-      { bass: 57, chord: [69, 72, 76], arp: [76, 81, 84, 81, 88, 84, 81, 76], hook: [84, 88, 91, 88] }, // Am
-      { bass: 53, chord: [65, 69, 72], arp: [72, 77, 81, 77, 84, 81, 77, 72], hook: [81, 84, 86, 88] } // F
+      {
+        bass: 48,
+        chord: [60, 64, 67],
+        arp: [72, 76, 79, 84, 79, 76, 72, 76, 79, 84, 88, 84, 79, 76, 72, 76],
+        hook: [79, 81, 83, 84]
+      }, // C
+      {
+        bass: 57,
+        chord: [69, 72, 76],
+        arp: [76, 81, 84, 88, 84, 81, 76, 81, 84, 88, 91, 88, 84, 81, 76, 81],
+        hook: [84, 86, 88, 91]
+      }, // Am
+      {
+        bass: 53,
+        chord: [65, 69, 72],
+        arp: [72, 77, 81, 84, 81, 77, 72, 77, 81, 84, 88, 84, 81, 77, 72, 77],
+        hook: [81, 83, 84, 86]
+      }, // F
+      {
+        bass: 55,
+        chord: [67, 71, 74],
+        arp: [74, 79, 83, 86, 83, 79, 74, 79, 83, 86, 91, 86, 83, 79, 74, 79],
+        hook: [83, 86, 88, 91]
+      } // G
     ];
-    const step = this.toneBgmStep % 32;
-    const section = progression[Math.floor(step / 8) % progression.length] ?? progression[0];
-    const beatInSection = step % 8;
-    const halfBeat = beatInSection % 2;
+    const step = this.toneBgmStep % 64;
+    const section = progression[Math.floor(step / 16) % progression.length] ?? progression[0];
+    const beatInSection = step % 16;
 
-    if ((beatInSection === 0 || beatInSection === 4) && this.toneBgmPad) {
+    if ((beatInSection === 0 || beatInSection === 8) && this.toneBgmPad) {
       const chord = section.chord.map((midi) => this.midiToToneNote(midi));
-      this.toneBgmPad.triggerAttackRelease(chord, "4n", time, beatInSection === 0 ? 0.19 : 0.15);
+      this.toneBgmPad.triggerAttackRelease(chord, "2n", time, beatInSection === 0 ? 0.16 : 0.12);
     }
 
     if (this.toneBgmBass) {
-      const bassMidi = halfBeat === 0 ? section.bass : section.bass + 12;
-      const bassVelocity = halfBeat === 0 ? 0.36 : 0.22;
+      const bassPattern = [0, 12, 7, 12, 0, 12, 7, 12];
+      const bassMidi = section.bass + (bassPattern[beatInSection % bassPattern.length] ?? 0);
+      const bassVelocity = beatInSection % 4 === 0 ? 0.34 : 0.2;
       this.toneBgmBass.triggerAttackRelease(this.midiToToneNote(bassMidi), "16n", time, bassVelocity);
     }
 
     if (this.toneBgmArp) {
       const arpMidi = section.arp[beatInSection] ?? section.arp[0];
-      this.toneBgmArp.triggerAttackRelease(this.midiToToneNote(arpMidi), "16n", time + 0.002, 0.17);
+      this.toneBgmArp.triggerAttackRelease(this.midiToToneNote(arpMidi), "32n", time + 0.0015, 0.14);
     }
 
-    if (this.toneBgmLead && (beatInSection === 1 || beatInSection === 3 || beatInSection === 5 || beatInSection === 7)) {
-      const hookIdx = Math.floor(beatInSection / 2);
+    if (this.toneBgmLead && (beatInSection === 2 || beatInSection === 6 || beatInSection === 10 || beatInSection === 14)) {
+      const hookIdx = Math.floor(beatInSection / 4);
       const hookMidi = section.hook[hookIdx] ?? section.hook[0];
-      this.toneBgmLead.triggerAttackRelease(this.midiToToneNote(hookMidi), "16n", time + 0.006, 0.2);
+      this.toneBgmLead.triggerAttackRelease(this.midiToToneNote(hookMidi), "16n", time + 0.004, 0.18);
+    }
+
+    if (this.toneBgmLead && beatInSection === 15) {
+      this.toneBgmLead.triggerAttackRelease(this.midiToToneNote(section.hook[3] + 2), "32n", time + 0.006, 0.16);
     }
 
     if (this.toneBgmHat) {
-      const offbeat = halfBeat === 1;
-      this.toneBgmHat.triggerAttackRelease("32n", time + 0.01, offbeat ? 0.12 : 0.045);
-      if (offbeat && beatInSection !== 7) {
-        this.toneBgmHat.triggerAttackRelease("64n", time + 0.088, 0.055);
+      const offbeat = beatInSection % 2 === 1;
+      this.toneBgmHat.triggerAttackRelease("32n", time + 0.009, offbeat ? 0.1 : 0.03);
+      if (offbeat && beatInSection % 4 === 3) {
+        this.toneBgmHat.triggerAttackRelease("64n", time + 0.075, 0.04);
       }
     }
 
