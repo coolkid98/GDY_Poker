@@ -662,6 +662,18 @@
       2. `activePlayers` 优先使用在线玩家，减少因离线导致的回合停滞
    4. 验证：
       1. `backend npm run build` 通过
+56. 阿里云部署配置补齐（2026-02-28）：
+   1. 部署编排（`deploy/docker-compose.prod.yml`）：
+      1. 新增 `redis` 服务（`redis:7-alpine` + AOF 持久化）
+      2. `backend` 新增 `depends_on: redis`
+      3. `backend` 环境变量新增 `AUTH_JWT_SECRET`
+      4. `REDIS_URL` 默认值改为 `redis://redis:6379/0`
+      5. 新增 `redis_data` 持久卷
+   2. 线上环境（`deploy/.env`）：
+      1. 填写 `REDIS_URL=redis://redis:6379/0`
+      2. 新增 `AUTH_JWT_SECRET`（长随机密钥）
+   3. 模板文件（`deploy/.env.example`）：
+      1. 同步增加 `REDIS_URL` 默认示例与 `AUTH_JWT_SECRET` 示例
 
 ## 10. 当前未完成项（必须继续）
 
