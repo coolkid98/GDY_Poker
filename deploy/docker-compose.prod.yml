@@ -1,14 +1,25 @@
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: gdy-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+
   backend:
     build:
       context: ../backend
     container_name: gdy-backend
     restart: unless-stopped
+    depends_on:
+      - redis
     environment:
       HOST: 0.0.0.0
       PORT: 2567
       ROOM_MAX_PLAYERS: ${ROOM_MAX_PLAYERS:-10}
-      REDIS_URL: ${REDIS_URL:-}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET}
     expose:
       - "2567"
 
@@ -42,5 +53,6 @@ services:
       - caddy_config:/config
 
 volumes:
+  redis_data:
   caddy_data:
   caddy_config:
