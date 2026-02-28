@@ -595,19 +595,45 @@
       4. `playBomb()` 改为 Tone 优先，初始化未就绪时回退到原 WebAudio 方案
    3. 验证：
       1. `frontend npm run build` 通过
+53. Redis 三件套落地（房间快照 + 重连 + 幂等，2026-02-28）：
+   1. 后端 Redis 服务扩展（`backend/src/services/redis-service.ts`）：
+      1. 新增房间快照读写清理：`set/get/clearRoomSnapshot`
+      2. 新增重连会话读写清理：`set/get/clearReconnectSession`
+      3. 新增幂等占位：`reserveActionId`（`SET NX EX`）
+   2. 房间逻辑接入（`backend/src/rooms/gdy-room.ts`）：
+      1. `onCreate` 注入 `redisService`，并全链路持久化快照（入房、离房、准备、开局、出牌、过牌、摸牌、结算）
+      2. 新增重连 token 机制：
+         1. 服务器下发 `reconnect_token`
+         2. 客户端可发 `request_reconnect_token` 主动刷新 token
+         3. `onJoin` 支持 `userId + reconnectToken` 恢复原座位与手牌
+      3. 幂等升级：
+         1. `validateActionBase` 改为异步
+         2. 先做内存去重，再做 Redis `NX` 占位，跨进程窗口内重复操作返回 `DUPLICATE_ACTION`
+   3. 启动接线（`backend/src/index.ts`）：
+      1. `gameServer.define("gdy_room", GdyRoom, { maxPlayers, redisService })`
+   4. 前端接入（`frontend/src/network/colyseus-client.ts` + `frontend/src/pages/RoomPage.tsx`）：
+      1. 新增会话级 `userId`（`sessionStorage`）
+      2. 本地保存重连元数据（`roomId/userId/reconnectToken`）
+      3. 进入房间时优先 `joinById` 重连，失败回退 `joinOrCreate`
+      4. 页面卸载默认保留重连信息；主动“退出房间”才清理
+   5. 构建验证：
+      1. `backend npm run build` 通过
+      2. `frontend npm run build` 通过
 
 ## 10. 当前未完成项（必须继续）
 
-1. Redis 目前仅接入服务层，尚未把房间快照、会话、排行榜写入全链路。
+1. Redis 已完成“快照 + 重连 + 幂等”，但排行榜与统计缓存尚未接入。
 2. PostgreSQL 尚未接入（`users`/`matches`/`match_players`/`match_events`）。
 3. 托管超时策略尚未接入定时器执行。
 
 ## 11. 关键实现约定（防遗忘）
 
 1. 服务端权威：客户端所有动作必须经后端确认后生效。
-2. 幂等：`actionId` 已在房间层去重（重复 action 会返回 `DUPLICATE_ACTION`）。
+2. 幂等：`actionId` 采用“内存去重 + Redis NX 占位”双层去重（重复 action 返回 `DUPLICATE_ACTION`）。
 3. 新一轮先手不可 `pass`（由 `TABLE_EMPTY_CANNOT_PASS` 拦截）。
-4. 断线重连保留窗口：`30s`（Colyseus `allowReconnection`）。
+4. 断线重连：
+   1. Colyseus `allowReconnection` 保留窗口：`30s`
+   2. 另支持 `userId + reconnectToken` 的显式重连恢复（用于刷新页/新连接）
 5. 赖子相关当前协议约定：
    1. `play_cards` 仍支持 `declaredType`、`declaredKey` 字段（可选）
    2. 后端已支持“无声明自动定型”；有声明时以声明为准
@@ -616,6 +642,6 @@
 ## 12. 下一阶段计划（阶段 2）
 
 1. 引入回合超时与托管自动出牌。
-2. 对接 Redis 房间快照与恢复。
+2. 基于 Redis 增加排行榜/统计缓存（按日/周榜）。
 3. 对接 PostgreSQL 战绩落库与事件流。
 4. 补充赖子出牌的前端智能提示（可选声明建议、可压提示）。

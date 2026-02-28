@@ -33,7 +33,8 @@ const bootstrap = async (): Promise<void> => {
   });
 
   gameServer.define("gdy_room", GdyRoom, {
-    maxPlayers: env.roomMaxPlayers
+    maxPlayers: env.roomMaxPlayers,
+    redisService
   });
 
   server.listen(env.port, env.host, () => {

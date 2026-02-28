@@ -858,7 +858,7 @@ export const RoomPage = (): JSX.Element => {
     return () => {
       mounted = false;
       if (joinedRoom) {
-        void leaveGameRoom();
+        void leaveGameRoom({ preserveReconnect: true });
       }
     };
   }, [navigate, nickname, pushEventLog, resolveSeatName, seatWithName, setConnected, setHand, setRoomMeta, setRoomState]);

@@ -3,14 +3,30 @@ import { buildDeck, shuffleCards } from "../engine/deck.js";
 import { RuleService } from "../engine/rule-service.js";
 import { GdyState, PlayerState } from "./schema/gdy-state.js";
 import type { Card, PassMessage, PlayCardsMessage } from "../types/game.js";
+import { RedisService } from "../services/redis-service.js";
 
 interface JoinOptions {
   userId?: string;
   nickname?: string;
+  reconnectToken?: string;
 }
 
 interface ReadyMessage {
   ready: boolean;
+}
+
+interface RoomCreateOptions {
+  maxPlayers?: number;
+  redisService?: RedisService;
+}
+
+interface ReconnectSessionSnapshot {
+  token: string;
+  sessionId: string;
+  seat: number;
+  nickname: string;
+  connected: boolean;
+  updatedAt: number;
 }
 
 export class GdyRoom extends Room<GdyState> {
@@ -18,12 +34,15 @@ export class GdyRoom extends Room<GdyState> {
   private readonly playerHands = new Map<string, string[]>();
   private deck: Card[] = [];
   private readonly processedActionIds = new Set<string>();
+  private readonly reconnectTokenByUserId = new Map<string, string>();
+  private redisService: RedisService | null = null;
 
-  onCreate(options: { maxPlayers?: number }): void {
+  onCreate(options: RoomCreateOptions): void {
     const state = new GdyState();
     state.roomId = this.roomId;
     this.setState(state);
 
+    this.redisService = options.redisService ?? null;
     this.maxClients = options.maxPlayers ?? this.ruleService.maxPlayers;
 
     this.onMessage("ready", (client, message: ReadyMessage) => {
@@ -31,11 +50,11 @@ export class GdyRoom extends Room<GdyState> {
     });
 
     this.onMessage("play_cards", (client, message: PlayCardsMessage) => {
-      this.handlePlayCards(client, message);
+      void this.handlePlayCards(client, message);
     });
 
     this.onMessage("pass", (client, message: PassMessage) => {
-      this.handlePass(client, message);
+      void this.handlePass(client, message);
     });
 
     this.onMessage("trustee_on", (client) => {
@@ -44,6 +63,7 @@ export class GdyRoom extends Room<GdyState> {
         return;
       }
       player.trustee = true;
+      this.persistRoomSnapshot();
     });
 
     this.onMessage("trustee_off", (client) => {
@@ -52,12 +72,46 @@ export class GdyRoom extends Room<GdyState> {
         return;
       }
       player.trustee = false;
+      this.persistRoomSnapshot();
     });
+
+    this.onMessage("request_reconnect_token", (client) => {
+      const player = this.state.players.get(client.sessionId);
+      if (!player) {
+        return;
+      }
+      this.sendReconnectToken(client, player);
+    });
+
+    this.persistRoomSnapshot();
   }
 
-  onJoin(client: Client, options: JoinOptions): void {
+  async onJoin(client: Client, options: JoinOptions): Promise<void> {
+    const normalizedUserId = options.userId?.trim() ? options.userId.trim() : client.sessionId;
+    const restored = await this.tryRestoreDisconnectedPlayer(client, {
+      ...options,
+      userId: normalizedUserId
+    });
+    if (restored) {
+      const restoredPlayer = this.state.players.get(client.sessionId);
+      if (restoredPlayer) {
+        this.sendReconnectToken(client, restoredPlayer);
+      }
+      this.syncRoomStatus();
+      this.persistRoomSnapshot();
+      return;
+    }
+
     if (this.state.status === "PLAYING" || this.state.status === "DEALING") {
       throw new Error("GAME_IN_PROGRESS");
+    }
+
+    const existing = this.findPlayerByUserId(normalizedUserId);
+    if (existing && existing.player.connected) {
+      throw new Error("USER_ALREADY_CONNECTED");
+    }
+    if (existing && !existing.player.connected) {
+      this.removePlayer(existing.sessionId);
     }
 
     const seat = this.nextSeat();
@@ -67,7 +121,7 @@ export class GdyRoom extends Room<GdyState> {
 
     const player = new PlayerState();
     player.sessionId = client.sessionId;
-    player.userId = options.userId ?? client.sessionId;
+    player.userId = normalizedUserId;
     player.nickname = options.nickname ?? `Player-${seat + 1}`;
     player.seat = seat;
     player.connected = true;
@@ -75,8 +129,10 @@ export class GdyRoom extends Room<GdyState> {
     this.state.players.set(client.sessionId, player);
     this.state.seatOrder.push(client.sessionId);
     this.playerHands.set(client.sessionId, []);
+    this.sendReconnectToken(client, player);
 
     this.syncRoomStatus();
+    this.persistRoomSnapshot();
   }
 
   async onLeave(client: Client, consented: boolean): Promise<void> {
@@ -89,23 +145,44 @@ export class GdyRoom extends Room<GdyState> {
 
     if (consented) {
       this.removePlayer(client.sessionId);
+      this.syncRoomStatus();
+      this.persistRoomSnapshot();
       return;
     }
+
+    await this.persistReconnectSession(player);
+    this.persistRoomSnapshot();
 
     try {
       await this.allowReconnection(client, 30);
       const rejoined = this.state.players.get(client.sessionId);
       if (rejoined) {
         rejoined.connected = true;
+        await this.persistReconnectSession(rejoined);
+      } else {
+        const byUserId = this.findPlayerByUserId(player.userId);
+        if (byUserId?.player.connected) {
+          await this.persistReconnectSession(byUserId.player);
+        }
       }
     } catch {
-      this.removePlayer(client.sessionId);
+      const stillBound = this.state.players.get(client.sessionId);
+      if (stillBound && !stillBound.connected) {
+        await this.clearReconnectSession(stillBound.userId);
+        this.removePlayer(client.sessionId);
+      }
     }
 
     this.syncRoomStatus();
+    this.persistRoomSnapshot();
   }
 
   onDispose(): void {
+    for (const player of this.state.players.values()) {
+      void this.clearReconnectSession(player.userId);
+    }
+    this.reconnectTokenByUserId.clear();
+    void this.redisService?.clearRoomSnapshot(this.roomId);
     this.playerHands.clear();
     this.deck = [];
     this.processedActionIds.clear();
@@ -127,14 +204,15 @@ export class GdyRoom extends Room<GdyState> {
 
     player.ready = Boolean(message?.ready);
     this.syncRoomStatus();
+    this.persistRoomSnapshot();
 
     if (this.canStartGame()) {
       this.startGame();
     }
   }
 
-  private handlePlayCards(client: Client, message: PlayCardsMessage): void {
-    const actionValidation = this.validateActionBase(client, message.actionId);
+  private async handlePlayCards(client: Client, message: PlayCardsMessage): Promise<void> {
+    const actionValidation = await this.validateActionBase(client, message.actionId);
     if (!actionValidation.ok) {
       client.send("action_result", actionValidation);
       return;
@@ -212,10 +290,11 @@ export class GdyRoom extends Room<GdyState> {
     }
 
     this.syncRoomStatus();
+    this.persistRoomSnapshot();
   }
 
-  private handlePass(client: Client, message: PassMessage): void {
-    const actionValidation = this.validateActionBase(client, message.actionId);
+  private async handlePass(client: Client, message: PassMessage): Promise<void> {
+    const actionValidation = await this.validateActionBase(client, message.actionId);
     if (!actionValidation.ok) {
       client.send("action_result", actionValidation);
       return;
@@ -255,6 +334,7 @@ export class GdyRoom extends Room<GdyState> {
       this.clearTable();
       this.broadcast("round_reset", { turnSeat: lastSeat });
       this.syncRoomStatus();
+      this.persistRoomSnapshot();
       return;
     }
 
@@ -264,9 +344,10 @@ export class GdyRoom extends Room<GdyState> {
     }
 
     this.syncRoomStatus();
+    this.persistRoomSnapshot();
   }
 
-  private validateActionBase(client: Client, actionId: string | undefined): { ok: boolean; reason?: string } {
+  private async validateActionBase(client: Client, actionId: string | undefined): Promise<{ ok: boolean; reason?: string }> {
     if (this.state.status !== "PLAYING") {
       return {
         ok: false,
@@ -281,13 +362,6 @@ export class GdyRoom extends Room<GdyState> {
       };
     }
 
-    if (this.processedActionIds.has(actionId)) {
-      return {
-        ok: false,
-        reason: "DUPLICATE_ACTION"
-      };
-    }
-
     if (!this.state.players.has(client.sessionId)) {
       return {
         ok: false,
@@ -295,12 +369,210 @@ export class GdyRoom extends Room<GdyState> {
       };
     }
 
-    this.processedActionIds.add(actionId);
-    if (this.processedActionIds.size > 5000) {
-      this.processedActionIds.clear();
+    const actionReserved = await this.reserveActionId(actionId);
+    if (!actionReserved) {
+      return {
+        ok: false,
+        reason: "DUPLICATE_ACTION"
+      };
     }
 
     return { ok: true };
+  }
+
+  private async reserveActionId(actionId: string): Promise<boolean> {
+    if (this.processedActionIds.has(actionId)) {
+      return false;
+    }
+
+    if (this.processedActionIds.size >= 5000) {
+      this.processedActionIds.clear();
+    }
+    this.processedActionIds.add(actionId);
+
+    if (!this.redisService?.isEnabled()) {
+      return true;
+    }
+
+    try {
+      const reserved = await this.redisService.reserveActionId(this.roomId, actionId, 900);
+      if (!reserved) {
+        this.processedActionIds.delete(actionId);
+      }
+      return reserved;
+    } catch {
+      return true;
+    }
+  }
+
+  private findPlayerByUserId(userId: string): { sessionId: string; player: PlayerState } | null {
+    for (const [sessionId, player] of this.state.players.entries()) {
+      if (player.userId === userId) {
+        return { sessionId, player };
+      }
+    }
+    return null;
+  }
+
+  private async tryRestoreDisconnectedPlayer(client: Client, options: JoinOptions): Promise<boolean> {
+    const userId = options.userId?.trim();
+    const reconnectToken = options.reconnectToken?.trim();
+    if (!userId || !reconnectToken) {
+      return false;
+    }
+
+    const existing = this.findPlayerByUserId(userId);
+    if (!existing) {
+      return false;
+    }
+
+    let expectedToken = this.reconnectTokenByUserId.get(userId);
+    if (!expectedToken && this.redisService?.isEnabled()) {
+      try {
+        const snapshot = await this.redisService.getReconnectSession<ReconnectSessionSnapshot>(this.roomId, userId);
+        if (snapshot?.token) {
+          expectedToken = snapshot.token;
+          this.reconnectTokenByUserId.set(userId, snapshot.token);
+        }
+      } catch {
+        expectedToken = undefined;
+      }
+    }
+
+    if (!expectedToken || expectedToken !== reconnectToken) {
+      return false;
+    }
+
+    const oldSessionId = existing.sessionId;
+    const player = existing.player;
+    player.sessionId = client.sessionId;
+    player.connected = true;
+    if (options.nickname?.trim()) {
+      player.nickname = options.nickname.trim();
+    }
+
+    if (oldSessionId !== client.sessionId) {
+      this.state.players.delete(oldSessionId);
+      this.state.players.set(client.sessionId, player);
+
+      const seatOrderIndex = this.state.seatOrder.findIndex((id) => id === oldSessionId);
+      if (seatOrderIndex >= 0) {
+        this.state.seatOrder.splice(seatOrderIndex, 1, client.sessionId);
+      }
+
+      const hand = this.playerHands.get(oldSessionId) ?? [];
+      this.playerHands.delete(oldSessionId);
+      this.playerHands.set(client.sessionId, hand);
+      player.handCount = hand.length;
+      client.send("hand_sync", { cards: hand });
+
+      const oldClient = this.clients.find((item) => item.sessionId === oldSessionId);
+      oldClient?.leave(4002);
+    } else {
+      const hand = this.playerHands.get(client.sessionId) ?? [];
+      player.handCount = hand.length;
+      client.send("hand_sync", { cards: hand });
+    }
+
+    await this.persistReconnectSession(player);
+    return true;
+  }
+
+  private issueReconnectToken(userId: string): string {
+    const token =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    this.reconnectTokenByUserId.set(userId, token);
+    return token;
+  }
+
+  private sendReconnectToken(client: Client, player: PlayerState): void {
+    const reconnectToken = this.issueReconnectToken(player.userId);
+    client.send("reconnect_token", {
+      roomId: this.roomId,
+      userId: player.userId,
+      reconnectToken,
+      sessionId: client.sessionId
+    });
+    void this.persistReconnectSession(player);
+  }
+
+  private async persistReconnectSession(player: PlayerState): Promise<void> {
+    if (!this.redisService?.isEnabled()) {
+      return;
+    }
+
+    const token = this.reconnectTokenByUserId.get(player.userId);
+    if (!token) {
+      return;
+    }
+
+    const payload: ReconnectSessionSnapshot = {
+      token,
+      sessionId: player.sessionId,
+      seat: player.seat,
+      nickname: player.nickname,
+      connected: player.connected,
+      updatedAt: Date.now()
+    };
+
+    try {
+      await this.redisService.setReconnectSession(this.roomId, player.userId, payload, 600);
+    } catch {
+      // Redis down should not block the room lifecycle.
+    }
+  }
+
+  private async clearReconnectSession(userId: string): Promise<void> {
+    if (!this.redisService?.isEnabled()) {
+      return;
+    }
+    try {
+      await this.redisService.clearReconnectSession(this.roomId, userId);
+    } catch {
+      // Best effort cleanup.
+    }
+  }
+
+  private persistRoomSnapshot(): void {
+    if (!this.redisService?.isEnabled()) {
+      return;
+    }
+
+    const snapshot = {
+      roomId: this.roomId,
+      status: this.state.status,
+      dealerSeat: this.state.dealerSeat,
+      turnSeat: this.state.turnSeat,
+      deckCount: this.state.deckCount,
+      passCount: this.state.passCount,
+      seatOrder: [...this.state.seatOrder],
+      lastPlay: {
+        seat: this.state.lastPlay.seat,
+        cards: [...this.state.lastPlay.cards],
+        declaredType: this.state.lastPlay.declaredType,
+        declaredKey: this.state.lastPlay.declaredKey
+      },
+      players: [...this.state.players.entries()].map(([sessionId, player]) => ({
+        sessionId,
+        userId: player.userId,
+        nickname: player.nickname,
+        seat: player.seat,
+        connected: player.connected,
+        ready: player.ready,
+        trustee: player.trustee,
+        handCount: player.handCount,
+        score: player.score
+      })),
+      playerHands: Object.fromEntries([...this.playerHands.entries()].map(([sessionId, cards]) => [sessionId, [...cards]])),
+      deck: [...this.deck],
+      updatedAt: Date.now()
+    };
+
+    void this.redisService.setRoomSnapshot(this.roomId, snapshot, 1800).catch(() => {
+      // Snapshot persistence is best-effort and must not break game flow.
+    });
   }
 
   private canStartGame(): boolean {
@@ -353,6 +625,7 @@ export class GdyRoom extends Room<GdyState> {
       turnSeat: this.state.turnSeat
     });
     this.syncRoomStatus();
+    this.persistRoomSnapshot();
   }
 
   private finishGame(winnerSeat: number): void {
@@ -385,6 +658,7 @@ export class GdyRoom extends Room<GdyState> {
     this.clearTable();
     this.state.turnSeat = this.state.dealerSeat;
     this.syncRoomStatus();
+    this.persistRoomSnapshot();
   }
 
   private drawOneForSeat(seat: number): void {
@@ -421,6 +695,8 @@ export class GdyRoom extends Room<GdyState> {
       deckCount: this.state.deckCount,
       handCount: hand.length
     });
+
+    this.persistRoomSnapshot();
   }
 
   private clearTable(): void {
@@ -484,6 +760,7 @@ export class GdyRoom extends Room<GdyState> {
   }
 
   private removePlayer(sessionId: string): void {
+    const removed = this.state.players.get(sessionId);
     this.state.players.delete(sessionId);
     this.playerHands.delete(sessionId);
 
@@ -492,11 +769,18 @@ export class GdyRoom extends Room<GdyState> {
       this.state.seatOrder.splice(index, 1);
     }
 
+    if (removed) {
+      this.reconnectTokenByUserId.delete(removed.userId);
+      void this.clearReconnectSession(removed.userId);
+    }
+
     if (this.state.players.size === 0) {
       this.state.status = "WAITING";
       this.state.dealerSeat = -1;
       this.state.turnSeat = -1;
       this.clearTable();
+      void this.redisService?.clearRoomSnapshot(this.roomId);
+      this.processedActionIds.clear();
     }
   }
 
