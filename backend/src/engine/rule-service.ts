@@ -150,6 +150,14 @@ export class RuleService {
     const nonWildcardCards = parsedCards.filter((card) => !card.wildcard);
     const hasWildcard = wildcardCards.length > 0;
 
+    // Rule: jokers are wildcards and cannot be played as a standalone single card.
+    if (cards.length === 1 && hasWildcard) {
+      return {
+        ok: false,
+        reason: "WILDCARD_SINGLE_FORBIDDEN"
+      };
+    }
+
     const type = toPatternType(declaredType);
     const key = toMainRank(declaredKey);
     const wildcards = wildcardCards.length;

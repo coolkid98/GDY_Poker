@@ -30,6 +30,7 @@ const reasonMap: Record<string, string> = {
   NOT_YOUR_TURN: "还没轮到你出牌",
   WILDCARD_DECLARE_REQUIRED: "赖子牌型定型失败，请补充声明后重试",
   CANNOT_BEAT_LAST_PLAY: "这手牌无法压过上一手",
+  WILDCARD_SINGLE_FORBIDDEN: "赖子（大小王）不能单出，必须和其他牌组合",
   INVALID_STRAIGHT: "顺子声明不合法",
   CARD_NOT_OWNED: "你出的牌不在手牌中",
   UNKNOWN_PATTERN: "牌型无法识别",

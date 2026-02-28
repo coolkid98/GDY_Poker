@@ -572,6 +572,17 @@
    1. 用户反馈“节奏太快”，在不改音色与编排前提下仅调速
    2. `Tone.Transport.bpm` 从 `128` 下调到 `114`（`frontend/src/audio/game-audio.ts`）
    3. 结果：整体更舒缓，仍保留像素风节拍感
+51. 规则修复：禁止单出赖子（2026-02-28）：
+   1. 问题：在特定路径下，玩家可单独打出大小王（赖子），与规则不符
+   2. 后端修复（`backend/src/engine/rule-service.ts`）：
+      1. 在 `evaluatePlay` 增加统一硬校验：
+      2. `cards.length === 1 && hasWildcard` 时直接返回 `WILDCARD_SINGLE_FORBIDDEN`
+      3. 覆盖自动推导和声明牌型两条路径，避免绕过
+   3. 前端提示（`frontend/src/pages/RoomPage.tsx`）：
+      1. 新增错误文案映射：`WILDCARD_SINGLE_FORBIDDEN -> 赖子（大小王）不能单出，必须和其他牌组合`
+   4. 构建验证：
+      1. `backend npm run build` 通过
+      2. `frontend npm run build` 通过
 
 ## 10. 当前未完成项（必须继续）
 
