@@ -220,6 +220,16 @@ button:disabled {
   color: #31424f;
 }
 
+.audio-toggle-btn {
+  min-width: 124px;
+}
+
+.audio-toggle-btn.active {
+  border-color: #3d7a68;
+  background: linear-gradient(180deg, #e3f4ee 0%, #d2eae2 100%);
+  color: #195444;
+}
+
 .replay-btn {
   border-color: #835f15;
   background: linear-gradient(180deg, #dba93f 0%, #b17e1d 100%);

@@ -460,6 +460,70 @@
    2. `deploy/docker-compose.prod.yml` 的 `caddy` 服务未注入上述环境变量，导致配置为空并重启
    3. 修复：为 `caddy` 增加 `environment` 注入 3 个变量
    4. 结果：Caddy 可正确解析域名并保持常驻运行
+40. 游戏音乐与音效接入（2026-02-28）：
+   1. 新增前端音频引擎（`frontend/src/audio/game-audio.ts`）：
+      1. 使用 Web Audio API（无额外依赖）实现
+      2. 背景音乐：轻循环旋律（按节拍自动循环）
+      3. 事件音效：摸牌音效、普通出牌音效、炸弹音效
+      4. 增加本地偏好持久化：`localStorage(gdy_audio_enabled)`
+   2. 房间页接入（`frontend/src/pages/RoomPage.tsx`）：
+      1. 新增“音乐/音效 开/关”按钮
+      2. 首次用户手势自动解锁音频上下文，避免移动端自动播放限制
+      3. 在 `player_drew` 触发摸牌音效
+      4. 在 `played` 触发出牌音效；炸弹牌型触发专属炸弹音效
+   3. 样式补充（`frontend/src/styles.css`）：
+      1. 新增音频按钮样式（开关态视觉区分）
+41. 音效风格二次重做（2026-02-28）：
+   1. 用户反馈首版音乐/音效体验一般，重做音频合成策略（`frontend/src/audio/game-audio.ts`）：
+      1. 新增总线处理：`compressor + masterGain`，控制峰值与整体听感
+      2. 背景音乐从“单线旋律”改为“和弦 Pad + 低音 + hi-hat 噪声节拍 + 主旋律”
+      3. 摸牌音效改为“刷牌噪声 + 上行提示音”
+      4. 出牌音效改为“卡牌落桌点击感 + 短音阶”，并按出牌张数增强力度
+      5. 炸弹音效改为“冲击噪声 + 低频下坠 + 高频尾音”的爆炸感组合
+   2. 保持原有 API 不变：
+      1. `playDrawSfx / playCardSfx / playBombSfx`
+      2. `startGameBackgroundMusic / stopGameBackgroundMusic`
+      3. 房间页调用方无需改动
+42. 摸牌/出牌音效三次优化（2026-02-28）：
+   1. 根据反馈“背景音乐可接受，但出牌/摸牌不满意”，仅重做两类音效（`frontend/src/audio/game-audio.ts`）：
+      1. 摸牌音效：改为“短刷牌噪声 + 轻提示音”，减少刺耳感并强化动作反馈
+      2. 出牌音效：改为“落桌冲击 + 高频 snap”，并按出牌张数提高力度
+      3. 多张出牌额外叠加低频层，让大牌组更有重量感
+   2. 背景音乐逻辑保持不变（节拍、和弦、低音全部未调整）
+43. 摸牌/出牌改为第三方包合成（2026-02-28）：
+   1. 受网络限制无法本地 `npm install tone`，改为运行时动态加载第三方包：
+      1. `Tone.js` CDN：`https://esm.sh/tone@15.0.4?bundle`
+      2. 代码位置：`frontend/src/audio/game-audio.ts`
+   2. 实现方式：
+      1. 新增 `ensureToneReady()`，在用户手势解锁阶段加载并初始化 Tone 合成器
+      2. 摸牌与出牌音效优先使用 Tone 触发（`playDrawWithTone` / `playCardWithTone`）
+      3. 若 CDN 不可达，自动回退到现有本地 WebAudio 音效，保证功能可用
+   3. 背景音乐与炸弹音效保持原逻辑不变
+44. 修复“安装 tone 后仍无声音”的初始化阻塞（2026-02-28）：
+   1. 根因：
+      1. `game-audio.ts` 仍走 CDN 导入 `tone`，网络不稳定会卡住加载
+      2. `unlock()` 等待 Tone 初始化，导致背景音乐与音效初始化链路被阻塞
+   2. 修复：
+      1. 改为从本地依赖动态导入：`import("tone")`
+      2. `unlock()` 改为非阻塞触发 Tone 预热，不再等待第三方加载完成
+   3. 结果：
+      1. 背景音乐可立即按原逻辑启动
+      2. 出牌/摸牌优先使用 Tone，初始化失败时仍有本地兜底音效
+45. 修复 Tone 在 dev 环境不生效（2026-02-28）：
+   1. 触发症状：
+      1. 前端无背景音乐与出牌/摸牌音效
+      2. Vite 告警：`import(TONE_MODULE_NAME)` 无法静态分析
+   2. 根因：
+      1. 运行时变量动态导入导致 Vite 无法稳定处理依赖优化
+      2. Tone 初始化链路异步过深，容易脱离用户手势上下文
+   3. 修复（`frontend/src/audio/game-audio.ts`）：
+      1. 改为静态引入：`import * as Tone from "tone"`
+      2. `ensureToneReady()` 改为同步创建 Tone 节点
+      3. 在 `unlock()` 的用户手势阶段执行 `await Tone.start()`
+      4. `playDraw/playCard` 继续保留本地 WebAudio 兜底
+   4. 结果：
+      1. Vite 不再出现动态导入分析告警
+      2. 本地 `tone` 依赖可被正常预构建并在前台生效
 
 ## 10. 当前未完成项（必须继续）
 

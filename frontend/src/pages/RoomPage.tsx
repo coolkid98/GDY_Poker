@@ -1,6 +1,16 @@
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { HandPanel } from "../components/HandPanel";
+import {
+  getAudioEnabledPreference,
+  playBombSfx,
+  playCardSfx,
+  playDrawSfx,
+  setAudioEnabledPreference,
+  startGameBackgroundMusic,
+  stopGameBackgroundMusic,
+  unlockGameAudio
+} from "../audio/game-audio";
 import { joinGameRoom, leaveGameRoom } from "../network/colyseus-client";
 import { normalizePlayers, useGameStore } from "../store/use-game-store";
 import type { UiLastPlay, UiPlayer } from "../types/game-state";
@@ -324,6 +334,8 @@ export const RoomPage = (): JSX.Element => {
   const [playFlights, setPlayFlights] = useState<PlayFlightItem[]>([]);
   const [bombFx, setBombFx] = useState<BombFxState | null>(null);
   const [winnerFx, setWinnerFx] = useState<WinnerFxState | null>(null);
+  const [audioEnabled, setAudioEnabled] = useState<boolean>(() => getAudioEnabledPreference());
+  const audioGestureArmedRef = useRef(true);
 
   const arenaBoardRef = useRef<HTMLDivElement | null>(null);
   const [arenaBoardSize, setArenaBoardSize] = useState<ArenaBoardSize>({
@@ -342,6 +354,34 @@ export const RoomPage = (): JSX.Element => {
 
   const { nickname, sessionId, roomState, hand, setConnected, setRoomMeta, setHand, setRoomState, appendLog, clearRoom } =
     useGameStore();
+
+  const primeAudioByGesture = useCallback((): void => {
+    if (!audioEnabled || !audioGestureArmedRef.current) {
+      return;
+    }
+    audioGestureArmedRef.current = false;
+    void unlockGameAudio().then((ok) => {
+      if (ok && audioEnabled) {
+        startGameBackgroundMusic();
+      }
+    });
+  }, [audioEnabled]);
+
+  const toggleAudio = useCallback((): void => {
+    const next = !audioEnabled;
+    setAudioEnabled(next);
+    setAudioEnabledPreference(next);
+    if (!next) {
+      stopGameBackgroundMusic();
+      return;
+    }
+    audioGestureArmedRef.current = false;
+    void unlockGameAudio().then((ok) => {
+      if (ok) {
+        startGameBackgroundMusic();
+      }
+    });
+  }, [audioEnabled]);
 
   const resolveSeatName = useCallback((seat: number): string => {
     const players = useGameStore.getState().roomState?.players ?? [];
@@ -446,12 +486,33 @@ export const RoomPage = (): JSX.Element => {
   }, []);
 
   useEffect(() => {
+    setAudioEnabledPreference(audioEnabled);
+    if (!audioEnabled) {
+      stopGameBackgroundMusic();
+      return;
+    }
+
+    let active = true;
+    void unlockGameAudio().then((ok) => {
+      if (active && ok) {
+        startGameBackgroundMusic();
+      }
+    });
+
+    return () => {
+      active = false;
+      stopGameBackgroundMusic();
+    };
+  }, [audioEnabled]);
+
+  useEffect(() => {
     if (!nickname) {
       navigate("/", { replace: true });
       return;
     }
 
     const triggerDrawEffects = (seat: number): void => {
+      playDrawSfx();
       setDrawPulseSeats((prev) => ({
         ...prev,
         [seat]: Date.now()
@@ -673,6 +734,7 @@ export const RoomPage = (): JSX.Element => {
           }
 
           if (message.declaredType === "bomb") {
+            playBombSfx();
             setBombFx({
               tick: Date.now(),
               seat: message.seat,
@@ -684,6 +746,8 @@ export const RoomPage = (): JSX.Element => {
             bombFxTimerRef.current = window.setTimeout(() => {
               setBombFx(null);
             }, 900);
+          } else {
+            playCardSfx(cards.length);
           }
 
           pushEventLog({
@@ -873,6 +937,7 @@ export const RoomPage = (): JSX.Element => {
   };
 
   const sendReady = (ready: boolean): void => {
+    primeAudioByGesture();
     roomRef?.send("ready", { ready });
   };
 
@@ -880,6 +945,7 @@ export const RoomPage = (): JSX.Element => {
     if (passDisabled) {
       return;
     }
+    primeAudioByGesture();
     roomRef?.send("pass", {
       actionId: generateActionId(),
       seq: Date.now()
@@ -890,6 +956,7 @@ export const RoomPage = (): JSX.Element => {
     if (playDisabled) {
       return;
     }
+    primeAudioByGesture();
     const payload: Record<string, unknown> = {
       actionId: generateActionId(),
       seq: Date.now(),
@@ -907,6 +974,7 @@ export const RoomPage = (): JSX.Element => {
     if (replayDisabled) {
       return;
     }
+    primeAudioByGesture();
     roomRef?.send("ready", { ready: true });
     if (myPlayer) {
       pushEventLog({
@@ -933,7 +1001,7 @@ export const RoomPage = (): JSX.Element => {
   };
 
   return (
-    <main className="page page-room">
+    <main className="page page-room" onPointerDownCapture={primeAudioByGesture}>
       <button
         type="button"
         className={`mobile-info-backdrop ${mobileInfoOpen ? "open" : ""}`}
@@ -947,6 +1015,9 @@ export const RoomPage = (): JSX.Element => {
           <div className="toolbar-actions">
             <button type="button" className="ghost-btn info-trigger-btn mobile-only" onClick={() => openInfoPanel("logs")}>
               战斗信息
+            </button>
+            <button type="button" className={`ghost-btn audio-toggle-btn ${audioEnabled ? "active" : ""}`} onClick={toggleAudio}>
+              {audioEnabled ? "音乐/音效 开" : "音乐/音效 关"}
             </button>
             <button type="button" className="ghost-btn" onClick={leaveRoom}>
               退出房间
