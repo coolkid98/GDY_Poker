@@ -583,6 +583,18 @@
    4. 构建验证：
       1. `backend npm run build` 通过
       2. `frontend npm run build` 通过
+52. 炸弹音效改为 Tone 专用音色链（2026-02-28）：
+   1. 目标：用户反馈原炸弹音效不理想，需更有“爆炸冲击感”
+   2. 实现（`frontend/src/audio/game-audio.ts`）：
+      1. 新增炸弹专用 Tone 总线：`toneBombBus`（带 Distortion + Filter + Compressor）
+      2. 新增三层合成器：
+         1. `toneBombNoise`：棕噪冲击层
+         2. `toneBombSub`：低频下潜层
+         3. `toneBombCrack`：高频爆裂层
+      3. 新增 `playBombWithTone()` 进行分层触发（主爆 + 尾击）
+      4. `playBomb()` 改为 Tone 优先，初始化未就绪时回退到原 WebAudio 方案
+   3. 验证：
+      1. `frontend npm run build` 通过
 
 ## 10. 当前未完成项（必须继续）
 

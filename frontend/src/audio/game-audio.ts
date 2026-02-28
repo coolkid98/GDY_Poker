@@ -46,6 +46,14 @@ class GameAudioEngine {
 
   private toneDrawPing: any | null = null;
 
+  private toneBombBus: any | null = null;
+
+  private toneBombNoise: any | null = null;
+
+  private toneBombSub: any | null = null;
+
+  private toneBombCrack: any | null = null;
+
   private toneBgmBus: any | null = null;
 
   private toneBgmPad: any | null = null;
@@ -357,6 +365,58 @@ class GameAudioEngine {
         }
       }).connect(fxBus);
 
+      this.toneBombBus = new Tone.Gain(0.95);
+      const bombDist = new Tone.Distortion(0.24);
+      const bombFilter = new Tone.Filter(2600, "lowpass");
+      const bombComp = new Tone.Compressor({
+        threshold: -12,
+        ratio: 5,
+        attack: 0.003,
+        release: 0.14
+      });
+      this.toneBombBus.chain(bombDist, bombFilter, bombComp, Tone.Destination);
+
+      this.toneBombNoise = new Tone.NoiseSynth({
+        noise: { type: "brown" },
+        envelope: {
+          attack: 0.001,
+          decay: 0.26,
+          sustain: 0,
+          release: 0.16
+        }
+      }).connect(this.toneBombBus);
+
+      this.toneBombSub = new Tone.MembraneSynth({
+        pitchDecay: 0.03,
+        octaves: 4.2,
+        oscillator: { type: "sine" },
+        envelope: {
+          attack: 0.001,
+          decay: 0.34,
+          sustain: 0,
+          release: 0.2
+        }
+      }).connect(this.toneBombBus);
+
+      this.toneBombCrack = new Tone.FMSynth({
+        harmonicity: 8,
+        modulationIndex: 20,
+        oscillator: { type: "square" },
+        modulation: { type: "triangle" },
+        envelope: {
+          attack: 0.001,
+          decay: 0.08,
+          sustain: 0,
+          release: 0.05
+        },
+        modulationEnvelope: {
+          attack: 0.001,
+          decay: 0.06,
+          sustain: 0,
+          release: 0.04
+        }
+      }).connect(this.toneBombBus);
+
       this.toneBgmBus = new Tone.Gain(0.05).toDestination();
       const bgmFilter = new Tone.Filter(6200, "lowpass");
       const bgmReverb = new Tone.Reverb({
@@ -489,6 +549,24 @@ class GameAudioEngine {
         const accentNote = this.toneModule.Frequency(bodyMidi - 7, "midi").toNote();
         this.toneCardBody?.triggerAttackRelease(accentNote, "32n", now + 0.032, 0.28 + normalizedCount * 0.04);
       }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private playBombWithTone(): boolean {
+    if (!this.enabled || !this.toneReady || !this.toneModule) {
+      return false;
+    }
+
+    try {
+      const now = this.toneModule.now();
+      this.toneBombNoise?.triggerAttackRelease("8n", now, 0.9);
+      this.toneBombSub?.triggerAttackRelease("F2", "8n", now + 0.004, 1);
+      this.toneBombSub?.triggerAttackRelease("C2", "16n", now + 0.085, 0.72);
+      this.toneBombCrack?.triggerAttackRelease("A5", "32n", now + 0.002, 0.55);
+      this.toneBombCrack?.triggerAttackRelease("E5", "16n", now + 0.028, 0.32);
       return true;
     } catch {
       return false;
@@ -814,6 +892,11 @@ class GameAudioEngine {
   }
 
   playBomb(): void {
+    if (this.toneReady && this.playBombWithTone()) {
+      return;
+    }
+    this.ensureToneReady();
+
     this.playNoiseBurst(0.06, {
       volume: 0.06,
       filterType: "bandpass",
